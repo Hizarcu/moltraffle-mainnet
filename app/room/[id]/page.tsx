@@ -3,6 +3,7 @@
 import { use, useState } from 'react';
 import Link from 'next/link';
 import { useAccount } from 'wagmi';
+import Confetti from 'react-confetti';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -10,6 +11,8 @@ import { CountdownTimer } from '@/components/raffle/CountdownTimer';
 import { RaffleStats } from '@/components/raffle/RaffleStats';
 import { ParticipantList } from '@/components/raffle/ParticipantList';
 import { JoinRaffleButton } from '@/components/raffle/JoinRaffleButton';
+import { WinnerDisplay } from '@/components/raffle/WinnerDisplay';
+import { DrawWinnerButton } from '@/components/raffle/DrawWinnerButton';
 import { getRaffleById } from '@/lib/utils/mockData';
 import { formatAddress, formatDate, getStatusColor } from '@/lib/utils/formatting';
 import { RaffleStatus } from '@/lib/types/raffle';
@@ -19,10 +22,18 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
   const { address } = useAccount();
   const raffle = getRaffleById(id);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   const handleJoinSuccess = () => {
     // Refresh the page data after successful join
     setRefreshKey(prev => prev + 1);
+  };
+
+  const handleDrawSuccess = () => {
+    // Refresh the page data and show confetti after winner is drawn
+    setRefreshKey(prev => prev + 1);
+    setShowConfetti(true);
+    setTimeout(() => setShowConfetti(false), 10000); // Stop confetti after 10s
   };
 
   if (!raffle) {
@@ -47,9 +58,22 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
   const hasJoined = address && raffle.participants.some(
     p => p.toLowerCase() === address.toLowerCase()
   );
+  const isCreator = address && raffle.creator.toLowerCase() === address.toLowerCase();
+  const hasEnded = new Date() > new Date(raffle.deadline);
+  const hasParticipants = raffle.participants.length > 0;
 
   return (
     <div className="min-h-screen p-4 sm:p-8">
+      {/* Confetti Animation */}
+      {(showConfetti || isDrawn) && (
+        <Confetti
+          width={typeof window !== 'undefined' ? window.innerWidth : 300}
+          height={typeof window !== 'undefined' ? window.innerHeight : 200}
+          recycle={showConfetti}
+          numberOfPieces={showConfetti ? 200 : 0}
+        />
+      )}
+
       <div className="max-w-5xl mx-auto">
         {/* Back Button */}
         <Link href="/explore" className="inline-flex items-center text-text-secondary hover:text-text-primary mb-6 transition-colors">
@@ -118,43 +142,16 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
               </div>
             </Card>
 
-            {/* Winner Info (if drawn) */}
-            {isDrawn && raffle.winner && (
-              <Card variant="gradient-border">
-                <div className="text-center py-8">
-                  <div className="text-6xl mb-4">🎉</div>
-                  <h2 className="text-3xl font-bold mb-4">Winner Announced!</h2>
-                  <div className="mb-6">
-                    <p className="text-text-muted mb-2">Winning Address</p>
-                    <p className="text-2xl font-mono font-bold text-semantic-success">
-                      {formatAddress(raffle.winner, 8)}
-                    </p>
-                  </div>
-
-                  {raffle.vrfRequestId && (
-                    <div className="p-6 bg-background-secondary rounded-lg">
-                      <h3 className="font-semibold mb-4">Verifiable Proof</h3>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-text-muted">VRF Request ID</span>
-                          <span className="font-mono">{raffle.vrfRequestId}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-text-muted">Winner Index</span>
-                          <span className="font-mono">{raffle.winnerIndex}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-text-muted">Random Number</span>
-                          <span className="font-mono">{raffle.randomNumber?.toString().slice(0, 10)}...</span>
-                        </div>
-                      </div>
-                      <Button variant="secondary" className="w-full mt-4">
-                        Verify on Chainlink Explorer
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </Card>
+            {/* Winner Display (if drawn) */}
+            {isDrawn && raffle.winner && raffle.vrfRequestId && (
+              <WinnerDisplay
+                winner={raffle.winner}
+                winnerIndex={raffle.winnerIndex || 0}
+                randomNumber={raffle.randomNumber || '0'}
+                vrfRequestId={raffle.vrfRequestId}
+                prizePool={raffle.prizePool}
+                totalParticipants={raffle.participants.length}
+              />
             )}
 
             {/* Participants List */}
@@ -172,6 +169,16 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
                   onSuccess={handleJoinSuccess}
                 />
               )}
+
+              {/* Draw Winner Button (Creator Only) */}
+              <DrawWinnerButton
+                raffleAddress={raffle.contractAddress}
+                isCreator={!!isCreator}
+                hasEnded={hasEnded}
+                hasParticipants={hasParticipants}
+                hasWinner={!!raffle.winner}
+                onSuccess={handleDrawSuccess}
+              />
 
               {/* Creator Info */}
               <Card variant="glass">
