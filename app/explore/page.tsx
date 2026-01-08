@@ -5,20 +5,28 @@ import { RaffleGrid } from '@/components/raffle/RaffleGrid';
 import { Badge } from '@/components/ui/Badge';
 import { RaffleStatus } from '@/lib/types/raffle';
 import { mockRaffles } from '@/lib/utils/mockData';
+import { useAllRaffles } from '@/lib/contracts/hooks/useAllRaffles';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { Card } from '@/components/ui/Card';
 
 export default function ExplorePage() {
   const [selectedStatus, setSelectedStatus] = useState<RaffleStatus | 'all'>('all');
+  const { raffleAddresses, isLoading } = useAllRaffles();
+
+  // Use mock data for now (will switch to blockchain data once we have raffles)
+  const hasBlockchainRaffles = raffleAddresses && raffleAddresses.length > 0;
+  const displayRaffles = hasBlockchainRaffles ? [] : mockRaffles; // TODO: Fetch actual raffle data for each address
 
   // Filter raffles by status
   const filteredRaffles = selectedStatus === 'all'
-    ? mockRaffles
-    : mockRaffles.filter(r => r.status === selectedStatus);
+    ? displayRaffles
+    : displayRaffles.filter(r => r.status === selectedStatus);
 
   const statusFilters = [
-    { value: 'all' as const, label: 'All Raffles', count: mockRaffles.length },
-    { value: RaffleStatus.ACTIVE, label: 'Active', count: mockRaffles.filter(r => r.status === RaffleStatus.ACTIVE).length },
-    { value: RaffleStatus.ENDED, label: 'Ended', count: mockRaffles.filter(r => r.status === RaffleStatus.ENDED).length },
-    { value: RaffleStatus.DRAWN, label: 'Drawn', count: mockRaffles.filter(r => r.status === RaffleStatus.DRAWN).length },
+    { value: 'all' as const, label: 'All Raffles', count: displayRaffles.length },
+    { value: RaffleStatus.ACTIVE, label: 'Active', count: displayRaffles.filter(r => r.status === RaffleStatus.ACTIVE).length },
+    { value: RaffleStatus.ENDED, label: 'Ended', count: displayRaffles.filter(r => r.status === RaffleStatus.ENDED).length },
+    { value: RaffleStatus.DRAWN, label: 'Drawn', count: displayRaffles.filter(r => r.status === RaffleStatus.DRAWN).length },
   ];
 
   return (
@@ -32,6 +40,25 @@ export default function ExplorePage() {
           <p className="text-text-secondary">
             Browse all raffles and find the perfect one to join
           </p>
+
+          {/* Blockchain Status */}
+          {isLoading ? (
+            <div className="mt-4">
+              <Skeleton className="h-8 w-64" />
+            </div>
+          ) : hasBlockchainRaffles ? (
+            <div className="mt-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg inline-block">
+              <p className="text-sm text-green-400">
+                ✓ Connected to blockchain • {raffleAddresses.length} {raffleAddresses.length === 1 ? 'raffle' : 'raffles'} on-chain
+              </p>
+            </div>
+          ) : (
+            <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg inline-block">
+              <p className="text-sm text-blue-400">
+                ℹ No on-chain raffles yet • Showing demo data • Create the first raffle!
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Filters */}
