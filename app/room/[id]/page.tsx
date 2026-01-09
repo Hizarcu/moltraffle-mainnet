@@ -13,16 +13,28 @@ import { ParticipantList } from '@/components/raffle/ParticipantList';
 import { JoinRaffleButton } from '@/components/raffle/JoinRaffleButton';
 import { WinnerDisplay } from '@/components/raffle/WinnerDisplay';
 import { DrawWinnerButton } from '@/components/raffle/DrawWinnerButton';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { getRaffleById } from '@/lib/utils/mockData';
+import { useRaffleDetails } from '@/lib/contracts/hooks/useAllRaffles';
 import { formatAddress, formatDate, getStatusColor } from '@/lib/utils/formatting';
 import { RaffleStatus } from '@/lib/types/raffle';
 
 export default function RaffleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { address } = useAccount();
-  const raffle = getRaffleById(id);
   const [refreshKey, setRefreshKey] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
+
+  // Check if this is a blockchain address (starts with 0x) or mock ID
+  const isBlockchainAddress = id.startsWith('0x');
+
+  // Fetch from blockchain if it's an address, otherwise use mock data
+  const { raffle: blockchainRaffle, isLoading } = useRaffleDetails(
+    isBlockchainAddress ? id : ''
+  );
+
+  const mockRaffle = !isBlockchainAddress ? getRaffleById(id) : null;
+  const raffle = isBlockchainAddress ? blockchainRaffle : mockRaffle;
 
   const handleJoinSuccess = () => {
     // Refresh the page data after successful join
@@ -35,6 +47,27 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
     setShowConfetti(true);
     setTimeout(() => setShowConfetti(false), 10000); // Stop confetti after 10s
   };
+
+  // Show loading state while fetching from blockchain
+  if (isBlockchainAddress && isLoading) {
+    return (
+      <div className="min-h-screen p-8">
+        <div className="max-w-5xl mx-auto">
+          <Skeleton className="h-8 w-32 mb-6" />
+          <Skeleton className="h-12 w-96 mb-4" />
+          <Skeleton className="h-6 w-64 mb-8" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
+              <Card className="p-6">
+                <Skeleton className="h-8 w-48 mb-4" />
+                <Skeleton className="h-32 w-full" />
+              </Card>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!raffle) {
     return (
@@ -53,8 +86,13 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
     );
   }
 
-  const isActive = raffle.status === RaffleStatus.ACTIVE;
-  const isDrawn = raffle.status === RaffleStatus.DRAWN;
+  // Handle both blockchain (number) and mock (string) status
+  const status = typeof raffle.status === 'number' ? raffle.status :
+                 raffle.status === 'active' ? 0 :
+                 raffle.status === 'ended' ? 1 : 2;
+
+  const isActive = status === 0; // ACTIVE
+  const isDrawn = status === 2; // DRAWN
   const hasJoined = address && raffle.participants.some(
     p => p.toLowerCase() === address.toLowerCase()
   );
@@ -87,8 +125,8 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
             <div className="flex items-center gap-3">
-              <Badge variant={getStatusColor(raffle.status)}>
-                {raffle.status.toUpperCase()}
+              <Badge variant={status === 0 ? 'success' : status === 1 ? 'warning' : 'default'}>
+                {status === 0 ? 'ACTIVE' : status === 1 ? 'ENDED' : 'DRAWN'}
               </Badge>
               {hasJoined && (
                 <Badge variant="info">You're Participating</Badge>
