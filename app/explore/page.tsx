@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useAccount } from 'wagmi';
 import { RaffleGrid } from '@/components/raffle/RaffleGrid';
+import { RaffleCardFromAddress } from '@/components/raffle/RaffleCardFromAddress';
 import { Badge } from '@/components/ui/Badge';
 import { RaffleStatus } from '@/lib/types/raffle';
 import { mockRaffles } from '@/lib/utils/mockData';
@@ -10,23 +12,24 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { Card } from '@/components/ui/Card';
 
 export default function ExplorePage() {
-  const [selectedStatus, setSelectedStatus] = useState<RaffleStatus | 'all'>('all');
+  const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'ended' | 'drawn'>('all');
+  const { address } = useAccount();
   const { raffleAddresses, isLoading } = useAllRaffles();
 
-  // Use mock data for now (will switch to blockchain data once we have raffles)
+  // Use blockchain data if available, otherwise fall back to mock data
   const hasBlockchainRaffles = raffleAddresses && raffleAddresses.length > 0;
-  const displayRaffles = hasBlockchainRaffles ? [] : mockRaffles; // TODO: Fetch actual raffle data for each address
+  const displayRaffles = !hasBlockchainRaffles ? mockRaffles : [];
 
-  // Filter raffles by status
+  // Filter mock raffles by status (only used when no blockchain raffles)
   const filteredRaffles = selectedStatus === 'all'
     ? displayRaffles
     : displayRaffles.filter(r => r.status === selectedStatus);
 
   const statusFilters = [
-    { value: 'all' as const, label: 'All Raffles', count: displayRaffles.length },
-    { value: RaffleStatus.ACTIVE, label: 'Active', count: displayRaffles.filter(r => r.status === RaffleStatus.ACTIVE).length },
-    { value: RaffleStatus.ENDED, label: 'Ended', count: displayRaffles.filter(r => r.status === RaffleStatus.ENDED).length },
-    { value: RaffleStatus.DRAWN, label: 'Drawn', count: displayRaffles.filter(r => r.status === RaffleStatus.DRAWN).length },
+    { value: 'all' as const, label: 'All Raffles', count: hasBlockchainRaffles ? raffleAddresses.length : displayRaffles.length },
+    { value: 'active' as const, label: 'Active', count: hasBlockchainRaffles ? raffleAddresses.length : displayRaffles.filter(r => r.status === 'active').length },
+    { value: 'ended' as const, label: 'Ended', count: 0 },
+    { value: 'drawn' as const, label: 'Drawn', count: 0 },
   ];
 
   return (
@@ -83,15 +86,27 @@ export default function ExplorePage() {
         {/* Results Count */}
         <div className="mb-6">
           <p className="text-text-muted">
-            Showing {filteredRaffles.length} {filteredRaffles.length === 1 ? 'raffle' : 'raffles'}
+            Showing {hasBlockchainRaffles ? raffleAddresses.length : filteredRaffles.length} {hasBlockchainRaffles ? (raffleAddresses.length === 1 ? 'raffle' : 'raffles') : (filteredRaffles.length === 1 ? 'raffle' : 'raffles')}
           </p>
         </div>
 
-        {/* Raffle Grid */}
-        <RaffleGrid
-          raffles={filteredRaffles}
-          emptyMessage="No raffles found with the selected filters"
-        />
+        {/* Raffle Display */}
+        {hasBlockchainRaffles ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {raffleAddresses.map((raffleAddress) => (
+              <RaffleCardFromAddress
+                key={raffleAddress}
+                raffleAddress={raffleAddress}
+                userAddress={address}
+              />
+            ))}
+          </div>
+        ) : (
+          <RaffleGrid
+            raffles={filteredRaffles}
+            emptyMessage="No raffles found with the selected filters"
+          />
+        )}
       </div>
     </div>
   );

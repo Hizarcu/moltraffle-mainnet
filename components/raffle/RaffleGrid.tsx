@@ -12,7 +12,6 @@ export function RaffleGrid({ raffles, className, emptyMessage = 'No raffles foun
   if (raffles.length === 0) {
     return (
       <div className="text-center py-12">
-        <div className="text-6xl mb-4">🎲</div>
         <p className="text-text-secondary text-lg">{emptyMessage}</p>
       </div>
     );
