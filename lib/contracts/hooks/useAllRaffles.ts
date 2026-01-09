@@ -104,26 +104,56 @@ export function useRaffleDetails(raffleAddress: string) {
   });
 
   // Transform blockchain data to Raffle type
-  const raffle: Raffle | null = raffleInfo ? {
-    id: raffleAddress,
-    contractAddress: raffleAddress,
-    title: (raffleInfo as any)[0],
-    description: (raffleInfo as any)[1],
-    prizeDescription: (raffleInfo as any)[2],
-    entryFee: parseFloat(formatEther((raffleInfo as any)[3])),
-    deadline: new Date(Number((raffleInfo as any)[4]) * 1000),
-    maxParticipants: Number((raffleInfo as any)[5]),
-    currentParticipants: Number((raffleInfo as any)[6]),
-    creator: (raffleInfo as any)[7],
-    status: (raffleInfo as any)[8] as RaffleStatus,
-    participants: (participants as string[]) || [],
-    prizePool: parseFloat(formatEther((raffleInfo as any)[3])) * Number((raffleInfo as any)[6]),
-    createdAt: new Date(), // Note: This would ideally come from events
-    winner: winner as string | undefined,
-    vrfRequestId: vrfRequestId ? String(vrfRequestId) : undefined,
-    randomNumber: randomResult ? String(randomResult) : undefined,
-    winnerIndex: undefined, // Would need to calculate or fetch separately
-  } : null;
+  const raffle: Raffle | null = raffleInfo ? (() => {
+    const deadlineTimestamp = Number((raffleInfo as any)[4]);
+    const deadlineDate = new Date(deadlineTimestamp * 1000);
+    const contractStatus = (raffleInfo as any)[8];
+    const currentTime = Date.now();
+    const hasWinner = winner && winner !== '0x0000000000000000000000000000000000000000';
+
+    // WORKAROUND: Contract status logic is buggy, calculate status ourselves
+    // Status priority: DRAWN > ENDED > ACTIVE
+    let actualStatus: number;
+    if (hasWinner) {
+      actualStatus = 2; // DRAWN - winner has been selected
+    } else if (deadlineDate.getTime() <= currentTime) {
+      actualStatus = 1; // ENDED - deadline passed but no winner yet
+    } else {
+      actualStatus = 0; // ACTIVE - deadline in future
+    }
+
+    console.log('=== Raffle Data Debug ===');
+    console.log('Raffle Address:', raffleAddress);
+    console.log('Deadline (Unix seconds):', deadlineTimestamp);
+    console.log('Deadline (Date):', deadlineDate.toISOString());
+    console.log('Current Time:', new Date(currentTime).toISOString());
+    console.log('Time until deadline (ms):', deadlineDate.getTime() - currentTime);
+    console.log('Status from contract:', contractStatus, '(BUGGY - ignoring)');
+    console.log('Calculated status:', actualStatus, actualStatus === 0 ? '(ACTIVE)' : actualStatus === 1 ? '(ENDED)' : '(DRAWN)');
+    console.log('Has winner:', hasWinner);
+    console.log('========================');
+
+    return {
+      id: raffleAddress,
+      contractAddress: raffleAddress,
+      title: (raffleInfo as any)[0],
+      description: (raffleInfo as any)[1],
+      prizeDescription: (raffleInfo as any)[2],
+      entryFee: parseFloat(formatEther((raffleInfo as any)[3])),
+      deadline: deadlineDate,
+      maxParticipants: Number((raffleInfo as any)[5]),
+      currentParticipants: Number((raffleInfo as any)[6]),
+      creator: (raffleInfo as any)[7],
+      status: actualStatus as RaffleStatus, // Use calculated status instead of contract status
+      participants: (participants as string[]) || [],
+      prizePool: parseFloat(formatEther((raffleInfo as any)[3])) * Number((raffleInfo as any)[6]),
+      createdAt: new Date(), // Note: This would ideally come from events
+      winner: winner as string | undefined,
+      vrfRequestId: vrfRequestId ? String(vrfRequestId) : undefined,
+      randomNumber: randomResult ? String(randomResult) : undefined,
+      winnerIndex: undefined, // Would need to calculate or fetch separately
+    };
+  })() : null;
 
   return {
     raffle,
