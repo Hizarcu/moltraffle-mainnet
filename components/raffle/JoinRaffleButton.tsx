@@ -33,7 +33,18 @@ export function JoinRaffleButton({ raffle, hasJoined, onSuccess }: JoinRaffleBut
     },
   });
 
-  const hasInsufficientBalance = balance && balance.value < raffle.entryFee;
+  // Format entry fee for display
+  const entryFeeFormatted = `${raffle.entryFee} ETH`;
+  const entryFeeInWei = BigInt(Math.floor(raffle.entryFee * 1e18));
+
+  console.log('=== Join Raffle Debug ===');
+  console.log('Entry Fee (ETH):', raffle.entryFee);
+  console.log('Entry Fee (Wei):', entryFeeInWei.toString());
+  console.log('Balance (Wei):', balance?.value.toString());
+  console.log('Raffle Address:', raffle.contractAddress);
+  console.log('========================');
+
+  const hasInsufficientBalance = balance && balance.value < entryFeeInWei;
   const isRaffleFull = raffle.maxParticipants && raffle.currentParticipants >= raffle.maxParticipants;
 
   const handleJoinClick = () => {
@@ -81,7 +92,7 @@ export function JoinRaffleButton({ raffle, hasJoined, onSuccess }: JoinRaffleBut
           <div className="mb-6">
             <div className="text-text-muted text-sm mb-1">Entry Fee</div>
             <div className="text-3xl font-bold text-gradient">
-              {raffle.entryFeeFormatted}
+              {entryFeeFormatted}
             </div>
           </div>
           <p className="text-sm text-text-secondary mb-4">
@@ -116,7 +127,7 @@ export function JoinRaffleButton({ raffle, hasJoined, onSuccess }: JoinRaffleBut
           <div className="mb-4">
             <div className="text-text-muted text-sm mb-1">Entry Fee</div>
             <div className="text-2xl font-bold text-gradient mb-2">
-              {raffle.entryFeeFormatted}
+              {entryFeeFormatted}
             </div>
             <div className="text-sm text-text-muted">
               Your balance: {balance ? formatEthAmount(balance.value) : '0 ETH'}
@@ -139,7 +150,7 @@ export function JoinRaffleButton({ raffle, hasJoined, onSuccess }: JoinRaffleBut
           <div className="mb-6">
             <div className="text-text-muted text-sm mb-1">Entry Fee</div>
             <div className="text-3xl font-bold text-gradient">
-              {raffle.entryFeeFormatted}
+              {entryFeeFormatted}
             </div>
             {balance && (
               <div className="text-sm text-text-muted mt-2">
@@ -175,7 +186,7 @@ export function JoinRaffleButton({ raffle, hasJoined, onSuccess }: JoinRaffleBut
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-text-muted">Entry Fee</span>
-                <span className="font-semibold">{raffle.entryFeeFormatted}</span>
+                <span className="font-semibold">{entryFeeFormatted}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-text-muted">Current Participants</span>
