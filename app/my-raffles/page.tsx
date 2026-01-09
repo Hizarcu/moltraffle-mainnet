@@ -7,14 +7,18 @@ import { Tabs } from '@/components/ui/Tabs';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useUserRaffles } from '@/lib/contracts/hooks/useUserRaffles';
+import { RaffleCardFromAddress } from '@/components/raffle/RaffleCardFromAddress';
 import { mockRaffles } from '@/lib/utils/mockData';
 
 export default function MyRafflesPage() {
   const [activeTab, setActiveTab] = useState('created');
   const { address, isConnected } = useAccount();
-  const { createdRaffles, isLoading } = useUserRaffles();
+  const { createdRaffles, allRaffles, isLoading } = useUserRaffles();
 
-  // For demo: filter mock raffles by creator address
+  // Use blockchain data if available, otherwise fall back to mock data
+  const hasBlockchainRaffles = createdRaffles.length > 0;
+
+  // For demo: filter mock raffles by creator address (only used if no blockchain raffles)
   const userCreatedRaffles = mockRaffles.filter(
     (r) => r.creator.toLowerCase() === address?.toLowerCase()
   );
@@ -77,7 +81,17 @@ export default function MyRafflesPage() {
           <>
             {activeTab === 'created' && (
               <>
-                {userCreatedRaffles.length === 0 ? (
+                {hasBlockchainRaffles ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {createdRaffles.map((raffleAddress) => (
+                      <RaffleCardFromAddress
+                        key={raffleAddress}
+                        raffleAddress={raffleAddress}
+                        userAddress={address}
+                      />
+                    ))}
+                  </div>
+                ) : userCreatedRaffles.length === 0 ? (
                   <EmptyState
                     icon="✨"
                     title="No Raffles Created Yet"
