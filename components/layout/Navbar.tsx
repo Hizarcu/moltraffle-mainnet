@@ -4,9 +4,14 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
 
-// Dynamically import ConnectButton with no SSR
+// Dynamically import wallet components with no SSR
 const ConnectButton = dynamic(
   () => import('@/components/wallet/ConnectButton').then(mod => ({ default: mod.ConnectButton })),
+  { ssr: false }
+);
+
+const NetworkIndicator = dynamic(
+  () => import('@/components/wallet/NetworkIndicator').then(mod => ({ default: mod.NetworkIndicator })),
   { ssr: false }
 );
 
@@ -45,8 +50,9 @@ export function Navbar() {
             ))}
           </div>
 
-          {/* Connect Button */}
-          <div className="hidden md:block">
+          {/* Network & Connect */}
+          <div className="hidden md:flex items-center gap-3">
+            <NetworkIndicator />
             <ConnectButton />
           </div>
 
@@ -78,7 +84,8 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
-            <div className="pt-4">
+            <div className="pt-4 space-y-3">
+              <NetworkIndicator />
               <ConnectButton />
             </div>
           </div>

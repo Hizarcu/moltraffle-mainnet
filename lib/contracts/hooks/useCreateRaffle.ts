@@ -60,8 +60,16 @@ export function useCreateRaffle(options?: UseCreateRaffleOptions) {
   const createRaffle = async (params: CreateRaffleParams) => {
     const factoryAddress = getRaffleFactoryAddress(params.chainId);
 
+    console.log('Creating raffle on chainId:', params.chainId);
+    console.log('Factory address found:', factoryAddress);
+
     if (!factoryAddress || factoryAddress === '0x0000000000000000000000000000000000000000') {
-      toast.error('RaffleFactory not deployed on this network');
+      const networkName = params.chainId === 11155111 ? 'Sepolia' :
+                         params.chainId === 1 ? 'Mainnet' :
+                         params.chainId === 43114 ? 'Avalanche' :
+                         params.chainId === 43113 ? 'Avalanche Fuji' :
+                         `Unknown (${params.chainId})`;
+      toast.error(`RaffleFactory not deployed on ${networkName}. Please switch to Sepolia testnet.`);
       return;
     }
 
