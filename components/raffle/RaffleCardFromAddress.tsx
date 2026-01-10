@@ -8,9 +8,10 @@ import Link from 'next/link';
 interface RaffleCardFromAddressProps {
   raffleAddress: string;
   userAddress?: string;
+  showOnlyIfParticipating?: boolean;
 }
 
-export function RaffleCardFromAddress({ raffleAddress, userAddress }: RaffleCardFromAddressProps) {
+export function RaffleCardFromAddress({ raffleAddress, userAddress, showOnlyIfParticipating = false }: RaffleCardFromAddressProps) {
   const { raffle, isLoading } = useRaffleDetails(raffleAddress);
 
   if (isLoading) {
@@ -27,22 +28,30 @@ export function RaffleCardFromAddress({ raffleAddress, userAddress }: RaffleCard
     return null;
   }
 
-  const getStatusColor = (status: number) => {
-    switch (status) {
-      case 0: return 'bg-green-500/20 text-green-400'; // ACTIVE
-      case 1: return 'bg-yellow-500/20 text-yellow-400'; // ENDED
-      case 2: return 'bg-purple-500/20 text-purple-400'; // DRAWN
-      default: return 'bg-gray-500/20 text-gray-400';
-    }
+  // Check if user is participating in this raffle
+  const isParticipating = userAddress && raffle.participants.some(
+    p => p.toLowerCase() === userAddress.toLowerCase()
+  );
+
+  // If showOnlyIfParticipating is true and user is not participating, don't render
+  if (showOnlyIfParticipating && !isParticipating) {
+    return null;
+  }
+
+  const getStatusColor = (status: number | string) => {
+    const s = typeof status === 'string' ? status : status;
+    if (s === 0 || s === 'active') return 'bg-green-500/20 text-green-400'; // ACTIVE
+    if (s === 1 || s === 'ended') return 'bg-yellow-500/20 text-yellow-400'; // ENDED
+    if (s === 2 || s === 'drawn') return 'bg-purple-500/20 text-purple-400'; // DRAWN
+    return 'bg-gray-500/20 text-gray-400';
   };
 
-  const getStatusLabel = (status: number) => {
-    switch (status) {
-      case 0: return 'Active';
-      case 1: return 'Ended';
-      case 2: return 'Drawn';
-      default: return 'Unknown';
-    }
+  const getStatusLabel = (status: number | string) => {
+    const s = typeof status === 'string' ? status : status;
+    if (s === 0 || s === 'active') return 'Active';
+    if (s === 1 || s === 'ended') return 'Ended';
+    if (s === 2 || s === 'drawn') return 'Drawn';
+    return 'Unknown';
   };
 
   const isWinner = raffle.winner && userAddress &&
@@ -52,14 +61,22 @@ export function RaffleCardFromAddress({ raffleAddress, userAddress }: RaffleCard
     <Card className="p-6 hover:border-purple-500/50 transition-colors">
       <div className="flex justify-between items-start mb-4">
         <h3 className="font-semibold text-lg">{raffle.title}</h3>
-        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(raffle.status)}`}>
-          {getStatusLabel(raffle.status)}
+        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(raffle.status as unknown as number)}`}>
+          {getStatusLabel(raffle.status as unknown as number)}
         </span>
       </div>
 
       <p className="text-sm text-gray-400 mb-4 line-clamp-2">
         {raffle.description}
       </p>
+
+      {isParticipating && !isWinner && (
+        <div className="mb-4 p-2 bg-blue-500/20 border border-blue-500/50 rounded-lg">
+          <p className="text-blue-400 font-medium text-center text-sm">
+            ✓ You're Participating
+          </p>
+        </div>
+      )}
 
       {isWinner && (
         <div className="mb-4 p-3 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/50 rounded-lg">
@@ -72,21 +89,21 @@ export function RaffleCardFromAddress({ raffleAddress, userAddress }: RaffleCard
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
           <span className="text-gray-400">Entry Fee</span>
-          <span className="font-medium">{raffle.entryFee} ETH</span>
+          <span className="font-medium">{raffle.entryFeeFormatted || `${Number(raffle.entryFee) / 1e18} ETH`}</span>
         </div>
 
         <div className="flex justify-between">
           <span className="text-gray-400">Participants</span>
           <span className="font-medium">
             {raffle.currentParticipants}
-            {raffle.maxParticipants > 0 && `/${raffle.maxParticipants}`}
+            {raffle.maxParticipants && raffle.maxParticipants > 0 && `/${raffle.maxParticipants}`}
           </span>
         </div>
 
         <div className="flex justify-between">
           <span className="text-gray-400">Prize Pool</span>
           <span className="font-medium text-green-400">
-            {raffle.prizePool.toFixed(4)} ETH
+            {raffle.totalPrizePoolFormatted || `${raffle.prizePool?.toFixed(4) || '0'} ETH`}
           </span>
         </div>
       </div>

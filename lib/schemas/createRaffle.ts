@@ -11,13 +11,7 @@ export const createRaffleSchema = z.object({
     .min(10, 'Description must be at least 10 characters')
     .max(500, 'Description must be less than 500 characters'),
 
-  // Step 2: Prize Details
-  prizeDescription: z
-    .string()
-    .min(5, 'Prize description must be at least 5 characters')
-    .max(300, 'Prize description must be less than 300 characters'),
-
-  // Step 3: Entry Fee & Participants
+  // Step 2: Entry Fee & Participants
   entryFee: z
     .string()
     .min(1, 'Entry fee is required')
@@ -32,7 +26,7 @@ export const createRaffleSchema = z.object({
       'Max participants must be a number or empty for unlimited'
     ),
 
-  // Step 4: Deadline
+  // Step 3: Deadline
   deadline: z
     .date()
     .refine((date) => date > new Date(), 'Deadline must be in the future'),
@@ -43,7 +37,18 @@ export type CreateRaffleFormData = z.infer<typeof createRaffleSchema>;
 export const defaultValues: Partial<CreateRaffleFormData> = {
   title: '',
   description: '',
-  prizeDescription: '',
   entryFee: '0.01',
   maxParticipants: '',
 };
+
+// Helper to calculate prize description automatically
+export function generatePrizeDescription(entryFee: string, maxParticipants: string): string {
+  const fee = Number(entryFee) || 0;
+  const max = maxParticipants === '' ? 0 : Number(maxParticipants);
+
+  if (max > 0) {
+    const maxPrize = (fee * max).toFixed(4);
+    return `Prize Pool: Up to ${maxPrize} ETH (${max} participants x ${fee} ETH)`;
+  }
+  return `Dynamic Prize Pool: Entry Fee ${fee} ETH x Number of Participants`;
+}

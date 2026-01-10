@@ -24,6 +24,7 @@ export const mockRaffles: Raffle[] = [
     chainId: 1,
     totalPrizePool: parseEther('0.47'),
     totalPrizePoolFormatted: '0.47 ETH',
+    prizePool: 0.47,
   },
   {
     id: '2',
@@ -44,6 +45,7 @@ export const mockRaffles: Raffle[] = [
     chainId: 1,
     totalPrizePool: parseEther('0.6'),
     totalPrizePoolFormatted: '0.6 ETH',
+    prizePool: 0.6,
   },
   {
     id: '3',
@@ -64,6 +66,7 @@ export const mockRaffles: Raffle[] = [
     chainId: 1,
     totalPrizePool: parseEther('0.156'),
     totalPrizePoolFormatted: '0.156 ETH',
+    prizePool: 0.156,
   },
   {
     id: '4',
@@ -84,6 +87,7 @@ export const mockRaffles: Raffle[] = [
     chainId: 1,
     totalPrizePool: parseEther('8.9'),
     totalPrizePoolFormatted: '8.9 ETH',
+    prizePool: 8.9,
   },
   {
     id: '5',
@@ -103,12 +107,13 @@ export const mockRaffles: Raffle[] = [
     winner: '0x4444444444444444444444444444444444444444',
     winnerIndex: 42,
     vrfRequestId: '0xabcd1234',
-    randomNumber: 424242424242n,
+    randomNumber: BigInt('424242424242'),
     creator: '0x5234567890123456789012345678901234567890',
     contractAddress: '0xefabcdefabcdefabcdefabcdefabcdefabcdefab',
     chainId: 1,
     totalPrizePool: parseEther('2'),
     totalPrizePoolFormatted: '2.0 ETH',
+    prizePool: 2.0,
   },
   {
     id: '6',
@@ -129,6 +134,7 @@ export const mockRaffles: Raffle[] = [
     chainId: 1,
     totalPrizePool: parseEther('0.345'),
     totalPrizePoolFormatted: '0.345 ETH',
+    prizePool: 0.345,
   },
 ];
 

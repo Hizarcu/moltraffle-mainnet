@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '../ui/Button';
+import { Card } from '../ui/Card';
 import { useDrawWinner } from '@/lib/contracts/hooks/useDrawWinner';
 
 interface DrawWinnerButtonProps {
@@ -22,14 +23,32 @@ export function DrawWinnerButton({
 }: DrawWinnerButtonProps) {
   const { drawWinner, isDrawing } = useDrawWinner(raffleAddress, { onSuccess });
 
-  if (!isCreator) {
-    return null;
-  }
-
+  // Winner already drawn - don't show anything
   if (hasWinner) {
     return null;
   }
 
+  // Not creator - show waiting status
+  if (!isCreator) {
+    if (!hasEnded) {
+      return (
+        <Card variant="glass" className="p-4">
+          <p className="text-center text-text-secondary text-sm">
+            ⏳ Waiting for deadline to pass...
+          </p>
+        </Card>
+      );
+    }
+    return (
+      <Card variant="glass" className="p-4">
+        <p className="text-center text-text-secondary text-sm">
+          🎲 Waiting for creator to draw winner...
+        </p>
+      </Card>
+    );
+  }
+
+  // Creator view - show appropriate button
   if (!hasEnded) {
     return (
       <Button disabled className="w-full">

@@ -53,6 +53,7 @@ export interface Raffle {
   // Prize pool
   totalPrizePool: bigint;
   totalPrizePoolFormatted: string;
+  prizePool: number; // Convenience: prize pool in ETH as number
 }
 
 /**

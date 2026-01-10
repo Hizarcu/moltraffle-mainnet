@@ -133,25 +133,34 @@ export function useRaffleDetails(raffleAddress: string) {
     console.log('Has winner:', hasWinner);
     console.log('========================');
 
+    const entryFeeWei = (raffleInfo as any)[3] as bigint;
+    const entryFeeEth = parseFloat(formatEther(entryFeeWei));
+    const participantCount = Number((raffleInfo as any)[6]);
+    const prizePoolEth = entryFeeEth * participantCount;
+
     return {
       id: raffleAddress,
       contractAddress: raffleAddress,
       title: (raffleInfo as any)[0],
       description: (raffleInfo as any)[1],
       prizeDescription: (raffleInfo as any)[2],
-      entryFee: parseFloat(formatEther((raffleInfo as any)[3])),
+      entryFee: entryFeeWei,
+      entryFeeFormatted: `${entryFeeEth} ETH`,
       deadline: deadlineDate,
       maxParticipants: Number((raffleInfo as any)[5]),
-      currentParticipants: Number((raffleInfo as any)[6]),
+      currentParticipants: participantCount,
       creator: (raffleInfo as any)[7],
-      status: actualStatus as RaffleStatus, // Use calculated status instead of contract status
+      status: actualStatus as unknown as RaffleStatus,
       participants: (participants as string[]) || [],
-      prizePool: parseFloat(formatEther((raffleInfo as any)[3])) * Number((raffleInfo as any)[6]),
-      createdAt: new Date(), // Note: This would ideally come from events
+      totalPrizePool: BigInt(Math.floor(prizePoolEth * 1e18)),
+      totalPrizePoolFormatted: `${prizePoolEth.toFixed(4)} ETH`,
+      prizePool: prizePoolEth, // Keep for backward compatibility
+      createdAt: new Date(),
       winner: winner as string | undefined,
       vrfRequestId: vrfRequestId ? String(vrfRequestId) : undefined,
-      randomNumber: randomResult ? String(randomResult) : undefined,
-      winnerIndex: undefined, // Would need to calculate or fetch separately
+      randomNumber: randomResult ? BigInt(String(randomResult)) : undefined,
+      winnerIndex: undefined,
+      chainId: 11155111, // Sepolia
     };
   })() : null;
 

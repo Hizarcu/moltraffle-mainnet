@@ -27,9 +27,12 @@ export default function MyRafflesPage() {
     r.participants.some((p) => p.toLowerCase() === address?.toLowerCase())
   );
 
+  // For participated tab, we need to check all blockchain raffles
+  const hasBlockchainData = allRaffles.length > 0;
+
   const tabs = [
-    { id: 'created', label: 'Created', count: createdRaffles.length || userCreatedRaffles.length },
-    { id: 'participated', label: 'Participated', count: userParticipatedRaffles.length },
+    { id: 'created', label: 'Created' },
+    { id: 'participated', label: 'Participated' },
   ];
 
   if (!isConnected) {
@@ -135,7 +138,7 @@ export default function MyRafflesPage() {
                             <span className="text-gray-400">Participants</span>
                             <span className="font-medium">
                               {raffle.currentParticipants}
-                              {raffle.maxParticipants > 0 && `/${raffle.maxParticipants}`}
+                              {raffle.maxParticipants && raffle.maxParticipants > 0 && `/${raffle.maxParticipants}`}
                             </span>
                           </div>
 
@@ -162,7 +165,18 @@ export default function MyRafflesPage() {
 
             {activeTab === 'participated' && (
               <>
-                {userParticipatedRaffles.length === 0 ? (
+                {hasBlockchainData ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {allRaffles.map((raffleAddress) => (
+                      <RaffleCardFromAddress
+                        key={raffleAddress}
+                        raffleAddress={raffleAddress}
+                        userAddress={address}
+                        showOnlyIfParticipating={true}
+                      />
+                    ))}
+                  </div>
+                ) : userParticipatedRaffles.length === 0 ? (
                   <EmptyState
                     icon="🎟️"
                     title="No Participations Yet"

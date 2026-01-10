@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { parseEther } from 'viem';
 import { RaffleABI } from '../abis/Raffle';
 import toast from 'react-hot-toast';
 
@@ -12,11 +11,12 @@ interface UseJoinRaffleParams {
 
 export function useJoinRaffle({ raffleAddress, entryFee, onSuccess }: UseJoinRaffleParams) {
   const [isJoining, setIsJoining] = useState(false);
+  const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
 
-  const { writeContract, data: hash, error, isPending } = useWriteContract();
+  const { writeContractAsync, isPending } = useWriteContract();
 
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash,
+    hash: txHash,
   });
 
   const joinRaffle = async () => {
@@ -26,41 +26,65 @@ export function useJoinRaffle({ raffleAddress, entryFee, onSuccess }: UseJoinRaf
       // Show pending toast
       toast.loading('Confirm transaction in your wallet...', { id: 'join-raffle' });
 
-      // Call contract
-      writeContract({
+      console.log('=== Calling joinRaffle ===');
+      console.log('Raffle Address:', raffleAddress);
+      console.log('Entry Fee (Wei):', entryFee.toString());
+
+      // Call contract using writeContractAsync for proper async handling
+      const hash = await writeContractAsync({
         address: raffleAddress as `0x${string}`,
         abi: RaffleABI,
         functionName: 'joinRaffle',
         value: entryFee,
       });
+
+      console.log('Transaction hash:', hash);
+      setTxHash(hash);
+      toast.loading('Transaction pending...', { id: 'join-raffle' });
+
     } catch (err: any) {
       console.error('Join raffle error:', err);
-      toast.error(err.message || 'Failed to join raffle', { id: 'join-raffle' });
+      console.error('Error details:', JSON.stringify(err, null, 2));
+
+      // Extract the most useful error message
+      let errorMessage = 'Failed to join raffle';
+      if (err.shortMessage) {
+        errorMessage = err.shortMessage;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
+      // Check for common contract errors
+      if (errorMessage.includes('RaffleNotActive')) {
+        errorMessage = 'Raffle is not active (contract bug - status shows ENDED)';
+      } else if (errorMessage.includes('AlreadyJoined')) {
+        errorMessage = 'You have already joined this raffle';
+      } else if (errorMessage.includes('RaffleFull')) {
+        errorMessage = 'Raffle is full';
+      } else if (errorMessage.includes('InsufficientEntryFee')) {
+        errorMessage = 'Insufficient entry fee sent';
+      } else if (errorMessage.includes('User rejected')) {
+        errorMessage = 'Transaction cancelled by user';
+      }
+
+      toast.error(errorMessage, { id: 'join-raffle' });
       setIsJoining(false);
     }
   };
 
-  // Handle transaction status changes
-  if (isConfirming && isJoining) {
-    toast.loading('Transaction pending...', { id: 'join-raffle' });
-  }
-
-  if (isSuccess && isJoining) {
-    toast.success('Successfully joined the raffle!', { id: 'join-raffle' });
-    setIsJoining(false);
-    onSuccess?.();
-  }
-
-  if (error && isJoining) {
-    toast.error(error.message || 'Transaction failed', { id: 'join-raffle' });
-    setIsJoining(false);
-  }
+  // Handle transaction confirmation
+  useEffect(() => {
+    if (isSuccess && isJoining) {
+      toast.success('Successfully joined the raffle!', { id: 'join-raffle' });
+      setIsJoining(false);
+      onSuccess?.();
+    }
+  }, [isSuccess, isJoining, onSuccess]);
 
   return {
     joinRaffle,
-    isJoining: isPending || isConfirming,
+    isJoining: isJoining || isPending || isConfirming,
     isSuccess,
-    error,
-    hash,
+    hash: txHash,
   };
 }

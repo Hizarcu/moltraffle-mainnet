@@ -9,14 +9,13 @@ import { StepIndicator } from './StepIndicator';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { useCreateRaffle } from '@/lib/contracts/hooks/useCreateRaffle';
-import { createRaffleSchema, CreateRaffleFormData, defaultValues } from '@/lib/schemas/createRaffle';
+import { createRaffleSchema, CreateRaffleFormData, defaultValues, generatePrizeDescription } from '@/lib/schemas/createRaffle';
 
 const steps = [
   { number: 1, title: 'Basic Info', description: 'Title & Description' },
-  { number: 2, title: 'Prize', description: 'What you\'re raffling' },
-  { number: 3, title: 'Entry', description: 'Fee & Participants' },
-  { number: 4, title: 'Deadline', description: 'When it ends' },
-  { number: 5, title: 'Review', description: 'Confirm details' },
+  { number: 2, title: 'Entry', description: 'Fee & Participants' },
+  { number: 3, title: 'Deadline', description: 'When it ends' },
+  { number: 4, title: 'Review', description: 'Confirm details' },
 ];
 
 export function CreateRaffleForm() {
@@ -54,18 +53,15 @@ export function CreateRaffleForm() {
         fieldsToValidate = ['title', 'description'];
         break;
       case 2:
-        fieldsToValidate = ['prizeDescription'];
-        break;
-      case 3:
         fieldsToValidate = ['entryFee', 'maxParticipants'];
         break;
-      case 4:
+      case 3:
         fieldsToValidate = ['deadline'];
         break;
     }
 
     const isValid = await trigger(fieldsToValidate);
-    if (isValid && currentStep < 5) {
+    if (isValid && currentStep < 4) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -81,10 +77,13 @@ export function CreateRaffleForm() {
       return;
     }
 
+    // Auto-generate prize description based on entry fee and max participants
+    const prizeDescription = generatePrizeDescription(data.entryFee, data.maxParticipants);
+
     createRaffle({
       title: data.title,
       description: data.description,
-      prizeDescription: data.prizeDescription,
+      prizeDescription,
       entryFee: data.entryFee,
       deadline: data.deadline,
       maxParticipants: data.maxParticipants,
@@ -140,28 +139,8 @@ export function CreateRaffleForm() {
             </div>
           )}
 
-          {/* Step 2: Prize Details */}
+          {/* Step 2: Entry Fee & Participants */}
           {currentStep === 2 && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold mb-6">Prize Details</h2>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Prize Description</label>
-                <textarea
-                  {...register('prizeDescription')}
-                  rows={4}
-                  placeholder="What will the winner receive?"
-                  className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
-                />
-                {errors.prizeDescription && (
-                  <p className="text-red-400 text-sm mt-1">{errors.prizeDescription.message}</p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Entry Fee & Participants */}
-          {currentStep === 3 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold mb-6">Entry & Participants</h2>
 
@@ -192,11 +171,33 @@ export function CreateRaffleForm() {
                   <p className="text-red-400 text-sm mt-1">{errors.maxParticipants.message}</p>
                 )}
               </div>
+
+              {/* Live Prize Pool Preview */}
+              {formValues.entryFee && Number(formValues.entryFee) > 0 && (
+                <div className="p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-lg">
+                  <p className="text-sm text-gray-400 mb-1">Prize Pool Preview</p>
+                  {formValues.maxParticipants && formValues.maxParticipants !== '' ? (
+                    <p className="font-bold text-lg text-gradient">
+                      {(Number(formValues.entryFee) * Number(formValues.maxParticipants)).toFixed(4)} ETH
+                      <span className="text-sm font-normal text-gray-400 ml-2">
+                        (max {formValues.maxParticipants} x {formValues.entryFee} ETH)
+                      </span>
+                    </p>
+                  ) : (
+                    <p className="font-bold text-lg text-gradient">
+                      Dynamic
+                      <span className="text-sm font-normal text-gray-400 ml-2">
+                        (Participants x {formValues.entryFee} ETH)
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
-          {/* Step 4: Deadline */}
-          {currentStep === 4 && (
+          {/* Step 3: Deadline */}
+          {currentStep === 3 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold mb-6">Deadline</h2>
 
@@ -215,8 +216,8 @@ export function CreateRaffleForm() {
             </div>
           )}
 
-          {/* Step 5: Review */}
-          {currentStep === 5 && (
+          {/* Step 4: Review */}
+          {currentStep === 4 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold mb-6">Review & Confirm</h2>
 
@@ -231,11 +232,6 @@ export function CreateRaffleForm() {
                   <p className="font-medium">{formValues.description}</p>
                 </div>
 
-                <div>
-                  <p className="text-sm text-gray-400">Prize</p>
-                  <p className="font-medium">{formValues.prizeDescription}</p>
-                </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-400">Entry Fee</p>
@@ -248,6 +244,26 @@ export function CreateRaffleForm() {
                       {formValues.maxParticipants === '' ? 'Unlimited' : formValues.maxParticipants}
                     </p>
                   </div>
+                </div>
+
+                {/* Dynamic Prize Pool Display */}
+                <div className="p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-lg">
+                  <p className="text-sm text-gray-400 mb-1">Prize Pool</p>
+                  {formValues.maxParticipants && formValues.maxParticipants !== '' ? (
+                    <p className="font-bold text-lg text-gradient">
+                      {(Number(formValues.entryFee || 0) * Number(formValues.maxParticipants)).toFixed(4)} ETH
+                      <span className="text-sm font-normal text-gray-400 ml-2">
+                        ({formValues.maxParticipants} x {formValues.entryFee} ETH)
+                      </span>
+                    </p>
+                  ) : (
+                    <p className="font-bold text-lg text-gradient">
+                      Dynamic
+                      <span className="text-sm font-normal text-gray-400 ml-2">
+                        (Participants x {formValues.entryFee} ETH)
+                      </span>
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -271,7 +287,7 @@ export function CreateRaffleForm() {
               Previous
             </Button>
 
-            {currentStep < 5 ? (
+            {currentStep < 4 ? (
               <Button type="button" onClick={nextStep}>
                 Next
               </Button>

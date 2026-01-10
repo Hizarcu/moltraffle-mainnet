@@ -8,7 +8,7 @@ interface WinnerDisplayProps {
   winnerIndex: number;
   randomNumber: string;
   vrfRequestId: string;
-  prizePool: number;
+  prizePool: string | number;
   totalParticipants: number;
 }
 
@@ -42,7 +42,9 @@ export function WinnerDisplay({
           {winner}
         </div>
         <div className="mt-4 text-center">
-          <div className="text-3xl font-bold text-green-400">{prizePool} ETH</div>
+          <div className="text-3xl font-bold text-green-400">
+            {typeof prizePool === 'string' ? prizePool : `${prizePool} ETH`}
+          </div>
           <div className="text-sm text-gray-400 mt-1">Prize Amount</div>
         </div>
       </div>

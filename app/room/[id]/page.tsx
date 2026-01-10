@@ -1,9 +1,10 @@
 'use client';
 
-import { use, useState } from 'react';
+import { use, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAccount } from 'wagmi';
 import Confetti from 'react-confetti';
+import { useWindowSize } from '@/hooks/useWindowSize';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -24,6 +25,13 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
   const { address } = useAccount();
   const [refreshKey, setRefreshKey] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const { width, height } = useWindowSize();
+
+  // Set mounted state after hydration
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Check if this is a blockchain address (starts with 0x) or mock ID
   const isBlockchainAddress = id.startsWith('0x');
@@ -91,22 +99,45 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
                  raffle.status === 'active' ? 0 :
                  raffle.status === 'ended' ? 1 : 2;
 
-  const isActive = status === 0; // ACTIVE
-  const isDrawn = status === 2; // DRAWN
+  // Calculate status based on deadline - use state to avoid hydration mismatch
+  const [hasEnded, setHasEnded] = useState(false);
+  const hasWinner = raffle.winner && raffle.winner !== '0x0000000000000000000000000000000000000000';
+
+  // Calculate hasEnded only on client to avoid hydration mismatch
+  useEffect(() => {
+    const checkEnded = () => {
+      const now = new Date();
+      const deadline = new Date(raffle.deadline);
+      setHasEnded(now > deadline);
+    };
+
+    checkEnded();
+    // Check every second in case deadline passes while viewing
+    const interval = setInterval(checkEnded, 1000);
+    return () => clearInterval(interval);
+  }, [raffle.deadline]);
+
+  // Use our own calculation instead of buggy contract status
+  const isActive = !hasEnded && !hasWinner;
+  const isDrawn = hasWinner;
+
   const hasJoined = address && raffle.participants.some(
     p => p.toLowerCase() === address.toLowerCase()
   );
+  // Count how many tickets the user has (same address can appear multiple times)
+  const userTicketCount = address
+    ? raffle.participants.filter(p => p.toLowerCase() === address.toLowerCase()).length
+    : 0;
   const isCreator = address && raffle.creator.toLowerCase() === address.toLowerCase();
-  const hasEnded = new Date() > new Date(raffle.deadline);
   const hasParticipants = raffle.participants.length > 0;
 
   return (
     <div className="min-h-screen p-4 sm:p-8">
-      {/* Confetti Animation */}
-      {(showConfetti || isDrawn) && (
+      {/* Confetti Animation - only render on client after mount */}
+      {isMounted && (showConfetti || isDrawn) && width > 0 && (
         <Confetti
-          width={typeof window !== 'undefined' ? window.innerWidth : 300}
-          height={typeof window !== 'undefined' ? window.innerHeight : 200}
+          width={width}
+          height={height}
           recycle={showConfetti}
           numberOfPieces={showConfetti ? 200 : 0}
         />
@@ -132,9 +163,7 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
                 <Badge variant="info">You're Participating</Badge>
               )}
             </div>
-            {isActive && (
-              <CountdownTimer deadline={raffle.deadline} />
-            )}
+            <CountdownTimer deadline={raffle.deadline} />
           </div>
 
           <h1 className="text-4xl font-bold mb-4">{raffle.title}</h1>
@@ -145,11 +174,28 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Main Info */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Prize Details */}
+            {/* Prize Pool */}
             <Card variant="glass">
-              <h2 className="text-2xl font-semibold mb-4">Prize</h2>
+              <h2 className="text-2xl font-semibold mb-4">Prize Pool</h2>
               <div className="p-6 bg-gradient-primary/10 rounded-lg border border-primary-purple/20">
-                <p className="text-xl font-bold text-gradient">{raffle.prizeDescription}</p>
+                <div className="text-3xl font-bold text-gradient mb-2">
+                  {raffle.totalPrizePoolFormatted || `${raffle.prizePool.toFixed(4)} ETH`}
+                </div>
+                <p className="text-text-secondary text-sm">
+                  {raffle.maxParticipants && raffle.maxParticipants > 0 ? (
+                    <>
+                      {raffle.currentParticipants} of {raffle.maxParticipants} participants
+                      <span className="mx-2">|</span>
+                      Max Prize: {raffle.entryFeeFormatted} x {raffle.maxParticipants}
+                    </>
+                  ) : (
+                    <>
+                      {raffle.currentParticipants} participant{raffle.currentParticipants !== 1 ? 's' : ''}
+                      <span className="mx-2">x</span>
+                      {raffle.entryFeeFormatted} entry fee
+                    </>
+                  )}
+                </p>
               </div>
             </Card>
 
@@ -185,9 +231,9 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
               <WinnerDisplay
                 winner={raffle.winner}
                 winnerIndex={raffle.winnerIndex || 0}
-                randomNumber={raffle.randomNumber || '0'}
+                randomNumber={raffle.randomNumber ? String(raffle.randomNumber) : '0'}
                 vrfRequestId={raffle.vrfRequestId}
-                prizePool={raffle.prizePool}
+                prizePool={raffle.totalPrizePoolFormatted || `${raffle.prizePool.toFixed(4)} ETH`}
                 totalParticipants={raffle.participants.length}
               />
             )}
@@ -203,7 +249,8 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
               {isActive && (
                 <JoinRaffleButton
                   raffle={raffle}
-                  hasJoined={hasJoined}
+                  hasJoined={!!hasJoined}
+                  userTicketCount={userTicketCount}
                   onSuccess={handleJoinSuccess}
                 />
               )}
