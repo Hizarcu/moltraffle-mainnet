@@ -76,6 +76,12 @@
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-primary-blue;
   }
+
+  /* Calendar picker icon - make it white/visible on dark background */
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+  }
 }
 
 /* Animations */

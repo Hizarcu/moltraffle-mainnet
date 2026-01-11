@@ -8,27 +8,11 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useUserRaffles } from '@/lib/contracts/hooks/useUserRaffles';
 import { RaffleCardFromAddress } from '@/components/raffle/RaffleCardFromAddress';
-import { mockRaffles } from '@/lib/utils/mockData';
 
 export default function MyRafflesPage() {
   const [activeTab, setActiveTab] = useState('created');
   const { address, isConnected } = useAccount();
   const { createdRaffles, allRaffles, isLoading } = useUserRaffles();
-
-  // Use blockchain data if available, otherwise fall back to mock data
-  const hasBlockchainRaffles = createdRaffles.length > 0;
-
-  // For demo: filter mock raffles by creator address (only used if no blockchain raffles)
-  const userCreatedRaffles = mockRaffles.filter(
-    (r) => r.creator.toLowerCase() === address?.toLowerCase()
-  );
-
-  const userParticipatedRaffles = mockRaffles.filter((r) =>
-    r.participants.some((p) => p.toLowerCase() === address?.toLowerCase())
-  );
-
-  // For participated tab, we need to check all blockchain raffles
-  const hasBlockchainData = allRaffles.length > 0;
 
   const tabs = [
     { id: 'created', label: 'Created' },
@@ -84,7 +68,7 @@ export default function MyRafflesPage() {
           <>
             {activeTab === 'created' && (
               <>
-                {hasBlockchainRaffles ? (
+                {createdRaffles.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {createdRaffles.map((raffleAddress) => (
                       <RaffleCardFromAddress
@@ -94,7 +78,7 @@ export default function MyRafflesPage() {
                       />
                     ))}
                   </div>
-                ) : userCreatedRaffles.length === 0 ? (
+                ) : (
                   <EmptyState
                     icon="✨"
                     title="No Raffles Created Yet"
@@ -102,70 +86,13 @@ export default function MyRafflesPage() {
                     actionLabel="Create Raffle"
                     actionHref="/create"
                   />
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {userCreatedRaffles.map((raffle) => (
-                      <Card key={raffle.id} className="p-6 hover:border-purple-500/50 transition-colors">
-                        <div className="flex justify-between items-start mb-4">
-                          <h3 className="font-semibold text-lg">{raffle.title}</h3>
-                          <span
-                            className={`
-                              px-3 py-1 rounded-full text-xs font-medium
-                              ${
-                                raffle.status === 'active'
-                                  ? 'bg-green-500/20 text-green-400'
-                                  : raffle.status === 'drawn'
-                                  ? 'bg-purple-500/20 text-purple-400'
-                                  : 'bg-gray-500/20 text-gray-400'
-                              }
-                            `}
-                          >
-                            {raffle.status}
-                          </span>
-                        </div>
-
-                        <p className="text-sm text-gray-400 mb-4 line-clamp-2">
-                          {raffle.description}
-                        </p>
-
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Entry Fee</span>
-                            <span className="font-medium">{raffle.entryFee} ETH</span>
-                          </div>
-
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Participants</span>
-                            <span className="font-medium">
-                              {raffle.currentParticipants}
-                              {raffle.maxParticipants && raffle.maxParticipants > 0 && `/${raffle.maxParticipants}`}
-                            </span>
-                          </div>
-
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Prize Pool</span>
-                            <span className="font-medium text-green-400">
-                              {raffle.prizePool} ETH
-                            </span>
-                          </div>
-                        </div>
-
-                        <a
-                          href={`/room/${raffle.id}`}
-                          className="block mt-4 text-center py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 rounded-lg transition-colors"
-                        >
-                          View Details
-                        </a>
-                      </Card>
-                    ))}
-                  </div>
                 )}
               </>
             )}
 
             {activeTab === 'participated' && (
               <>
-                {hasBlockchainData ? (
+                {allRaffles.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {allRaffles.map((raffleAddress) => (
                       <RaffleCardFromAddress
@@ -176,7 +103,7 @@ export default function MyRafflesPage() {
                       />
                     ))}
                   </div>
-                ) : userParticipatedRaffles.length === 0 ? (
+                ) : (
                   <EmptyState
                     icon="🎟️"
                     title="No Participations Yet"
@@ -184,63 +111,6 @@ export default function MyRafflesPage() {
                     actionLabel="Explore Raffles"
                     actionHref="/explore"
                   />
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {userParticipatedRaffles.map((raffle) => (
-                      <Card key={raffle.id} className="p-6 hover:border-purple-500/50 transition-colors">
-                        <div className="flex justify-between items-start mb-4">
-                          <h3 className="font-semibold text-lg">{raffle.title}</h3>
-                          <span
-                            className={`
-                              px-3 py-1 rounded-full text-xs font-medium
-                              ${
-                                raffle.status === 'active'
-                                  ? 'bg-green-500/20 text-green-400'
-                                  : raffle.status === 'drawn'
-                                  ? 'bg-purple-500/20 text-purple-400'
-                                  : 'bg-gray-500/20 text-gray-400'
-                              }
-                            `}
-                          >
-                            {raffle.status}
-                          </span>
-                        </div>
-
-                        <p className="text-sm text-gray-400 mb-4 line-clamp-2">
-                          {raffle.description}
-                        </p>
-
-                        {raffle.status === 'drawn' && raffle.winner === address && (
-                          <div className="mb-4 p-3 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/50 rounded-lg">
-                            <p className="text-yellow-400 font-medium text-center">
-                              🎉 You Won!
-                            </p>
-                          </div>
-                        )}
-
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Your Entry</span>
-                            <span className="font-medium">{raffle.entryFee} ETH</span>
-                          </div>
-
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Prize Pool</span>
-                            <span className="font-medium text-green-400">
-                              {raffle.prizePool} ETH
-                            </span>
-                          </div>
-                        </div>
-
-                        <a
-                          href={`/room/${raffle.id}`}
-                          className="block mt-4 text-center py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 rounded-lg transition-colors"
-                        >
-                          View Details
-                        </a>
-                      </Card>
-                    ))}
-                  </div>
                 )}
               </>
             )}

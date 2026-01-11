@@ -9,9 +9,10 @@ interface RaffleCardFromAddressProps {
   raffleAddress: string;
   userAddress?: string;
   showOnlyIfParticipating?: boolean;
+  filterStatus?: 'all' | 'active' | 'ended';
 }
 
-export function RaffleCardFromAddress({ raffleAddress, userAddress, showOnlyIfParticipating = false }: RaffleCardFromAddressProps) {
+export function RaffleCardFromAddress({ raffleAddress, userAddress, showOnlyIfParticipating = false, filterStatus = 'all' }: RaffleCardFromAddressProps) {
   const { raffle, isLoading } = useRaffleDetails(raffleAddress);
 
   if (isLoading) {
@@ -38,11 +39,26 @@ export function RaffleCardFromAddress({ raffleAddress, userAddress, showOnlyIfPa
     return null;
   }
 
+  // Filter by status if specified
+  if (filterStatus !== 'all') {
+    const status = typeof raffle.status === 'number' ? raffle.status : raffle.status;
+    const isActive = status === 0 || status === 'active';
+    const isEnded = status === 1 || status === 'ended';
+
+    if (filterStatus === 'active' && !isActive) {
+      return null;
+    }
+    if (filterStatus === 'ended' && !isEnded) {
+      return null;
+    }
+  }
+
   const getStatusColor = (status: number | string) => {
     const s = typeof status === 'string' ? status : status;
     if (s === 0 || s === 'active') return 'bg-green-500/20 text-green-400'; // ACTIVE
     if (s === 1 || s === 'ended') return 'bg-yellow-500/20 text-yellow-400'; // ENDED
     if (s === 2 || s === 'drawn') return 'bg-purple-500/20 text-purple-400'; // DRAWN
+    if (s === 4 || s === 'cancelled') return 'bg-blue-500/20 text-blue-400'; // COMPLETED (prize claimed)
     return 'bg-gray-500/20 text-gray-400';
   };
 
@@ -51,6 +67,7 @@ export function RaffleCardFromAddress({ raffleAddress, userAddress, showOnlyIfPa
     if (s === 0 || s === 'active') return 'Active';
     if (s === 1 || s === 'ended') return 'Ended';
     if (s === 2 || s === 'drawn') return 'Drawn';
+    if (s === 4 || s === 'cancelled') return 'Completed';
     return 'Unknown';
   };
 

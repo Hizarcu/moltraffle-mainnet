@@ -50,6 +50,7 @@ export function JoinRaffleButton({ raffle, hasJoined, userTicketCount = 0, onSuc
   const { joinRaffle, isJoining, hash } = useJoinRaffle({
     raffleAddress: raffle.contractAddress,
     entryFee: totalCost,  // Pass total cost for all tickets
+    ticketCount: ticketCount,  // Pass number of tickets
     onSuccess: () => {
       setShowConfirmModal(false);
       setTicketCount(1);

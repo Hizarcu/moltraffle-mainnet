@@ -15,7 +15,6 @@ import { JoinRaffleButton } from '@/components/raffle/JoinRaffleButton';
 import { WinnerDisplay } from '@/components/raffle/WinnerDisplay';
 import { DrawWinnerButton } from '@/components/raffle/DrawWinnerButton';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { getRaffleById } from '@/lib/utils/mockData';
 import { useRaffleDetails } from '@/lib/contracts/hooks/useAllRaffles';
 import { formatAddress, formatDate, getStatusColor } from '@/lib/utils/formatting';
 import { RaffleStatus } from '@/lib/types/raffle';
@@ -26,6 +25,7 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
   const [refreshKey, setRefreshKey] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [hasEnded, setHasEnded] = useState(false);
   const { width, height } = useWindowSize();
 
   // Set mounted state after hydration
@@ -33,16 +33,24 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
     setIsMounted(true);
   }, []);
 
-  // Check if this is a blockchain address (starts with 0x) or mock ID
-  const isBlockchainAddress = id.startsWith('0x');
+  // Fetch from blockchain
+  const { raffle, isLoading } = useRaffleDetails(id);
 
-  // Fetch from blockchain if it's an address, otherwise use mock data
-  const { raffle: blockchainRaffle, isLoading } = useRaffleDetails(
-    isBlockchainAddress ? id : ''
-  );
+  // Calculate hasEnded only on client to avoid hydration mismatch
+  useEffect(() => {
+    if (!isMounted || !raffle) return;
 
-  const mockRaffle = !isBlockchainAddress ? getRaffleById(id) : null;
-  const raffle = isBlockchainAddress ? blockchainRaffle : mockRaffle;
+    const checkEnded = () => {
+      const now = new Date();
+      const deadline = new Date(raffle.deadline);
+      setHasEnded(now > deadline);
+    };
+
+    checkEnded();
+    // Check every second in case deadline passes while viewing
+    const interval = setInterval(checkEnded, 1000);
+    return () => clearInterval(interval);
+  }, [raffle?.deadline, isMounted, raffle]);
 
   const handleJoinSuccess = () => {
     // Refresh the page data after successful join
@@ -57,7 +65,7 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
   };
 
   // Show loading state while fetching from blockchain
-  if (isBlockchainAddress && isLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen p-8">
         <div className="max-w-5xl mx-auto">
@@ -99,26 +107,19 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
                  raffle.status === 'active' ? 0 :
                  raffle.status === 'ended' ? 1 : 2;
 
-  // Calculate status based on deadline - use state to avoid hydration mismatch
-  const [hasEnded, setHasEnded] = useState(false);
   const hasWinner = raffle.winner && raffle.winner !== '0x0000000000000000000000000000000000000000';
 
-  // Calculate hasEnded only on client to avoid hydration mismatch
-  useEffect(() => {
-    const checkEnded = () => {
-      const now = new Date();
-      const deadline = new Date(raffle.deadline);
-      setHasEnded(now > deadline);
-    };
+  // Check if prize was already claimed (status = CANCELLED after claiming)
+  const prizeClaimed = status === 4; // RaffleStatus.CANCELLED
 
-    checkEnded();
-    // Check every second in case deadline passes while viewing
-    const interval = setInterval(checkEnded, 1000);
-    return () => clearInterval(interval);
-  }, [raffle.deadline]);
+  // Check if max participants reached
+  const isMaxParticipantsReached = raffle.maxParticipants > 0 && raffle.currentParticipants >= raffle.maxParticipants;
+
+  // Ready to draw if deadline passed OR max participants reached
+  const isReadyToDraw = hasEnded || isMaxParticipantsReached;
 
   // Use our own calculation instead of buggy contract status
-  const isActive = !hasEnded && !hasWinner;
+  const isActive = !isReadyToDraw && !hasWinner;
   const isDrawn = hasWinner;
 
   const hasJoined = address && raffle.participants.some(
@@ -235,6 +236,9 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
                 vrfRequestId={raffle.vrfRequestId}
                 prizePool={raffle.totalPrizePoolFormatted || `${raffle.prizePool.toFixed(4)} ETH`}
                 totalParticipants={raffle.participants.length}
+                raffleAddress={raffle.contractAddress}
+                prizeClaimed={prizeClaimed}
+                onClaimSuccess={() => setRefreshKey(prev => prev + 1)}
               />
             )}
 
@@ -255,13 +259,12 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
                 />
               )}
 
-              {/* Draw Winner Button (Creator Only) */}
+              {/* Draw Winner Button (Anyone Can Draw) */}
               <DrawWinnerButton
                 raffleAddress={raffle.contractAddress}
-                isCreator={!!isCreator}
-                hasEnded={hasEnded}
+                hasEnded={isReadyToDraw}
                 hasParticipants={hasParticipants}
-                hasWinner={!!raffle.winner}
+                hasWinner={hasWinner}
                 onSuccess={handleDrawSuccess}
               />
 

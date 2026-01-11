@@ -36,27 +36,12 @@ export const RaffleABI = [
       },
       {
         "internalType": "address",
-        "name": "_vrfCoordinator",
+        "name": "_factory",
         "type": "address"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "_keyHash",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_subscriptionId",
-        "type": "uint256"
       }
     ],
     "stateMutability": "nonpayable",
     "type": "constructor"
-  },
-  {
-    "inputs": [],
-    "name": "AlreadyJoined",
-    "type": "error"
   },
   {
     "inputs": [],
@@ -65,7 +50,12 @@ export const RaffleABI = [
   },
   {
     "inputs": [],
-    "name": "InsufficientEntryFee",
+    "name": "InsufficientPayment",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidTicketCount",
     "type": "error"
   },
   {
@@ -84,40 +74,8 @@ export const RaffleABI = [
     "type": "error"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "have",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "want",
-        "type": "address"
-      }
-    ],
-    "name": "OnlyCoordinatorCanFulfill",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "have",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "coordinator",
-        "type": "address"
-      }
-    ],
-    "name": "OnlyOwnerOrCoordinator",
+    "inputs": [],
+    "name": "OnlyFactory",
     "type": "error"
   },
   {
@@ -146,62 +104,6 @@ export const RaffleABI = [
     "type": "error"
   },
   {
-    "inputs": [],
-    "name": "ZeroAddress",
-    "type": "error"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "vrfCoordinator",
-        "type": "address"
-      }
-    ],
-    "name": "CoordinatorSet",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "from",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
-      }
-    ],
-    "name": "OwnershipTransferRequested",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "from",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
-      }
-    ],
-    "name": "OwnershipTransferred",
-    "type": "event"
-  },
-  {
     "anonymous": false,
     "inputs": [
       {
@@ -213,7 +115,19 @@ export const RaffleABI = [
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "participantCount",
+        "name": "ticketsBought",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "totalTickets",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "participantTicketCount",
         "type": "uint256"
       }
     ],
@@ -249,6 +163,19 @@ export const RaffleABI = [
     "anonymous": false,
     "inputs": [
       {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "requestId",
+        "type": "uint256"
+      }
+    ],
+    "name": "RandomnessRequested",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "indexed": true,
         "internalType": "address",
         "name": "winner",
@@ -275,13 +202,6 @@ export const RaffleABI = [
     ],
     "name": "WinnerDrawn",
     "type": "event"
-  },
-  {
-    "inputs": [],
-    "name": "acceptOwnership",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
   },
   {
     "inputs": [],
@@ -364,15 +284,33 @@ export const RaffleABI = [
   },
   {
     "inputs": [],
-    "name": "getParticipantCount",
+    "name": "factory",
     "outputs": [
       {
-        "internalType": "uint256",
+        "internalType": "contract IRaffleFactory",
         "name": "",
-        "type": "uint256"
+        "type": "address"
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_requestId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_randomWord",
+        "type": "uint256"
+      }
+    ],
+    "name": "fulfillRandomness",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -403,7 +341,7 @@ export const RaffleABI = [
   },
   {
     "inputs": [],
-    "name": "getRaffleInfo",
+    "name": "getRaffleDetails",
     "outputs": [
       {
         "internalType": "string",
@@ -413,11 +351,6 @@ export const RaffleABI = [
       {
         "internalType": "string",
         "name": "_description",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "_prizeDescription",
         "type": "string"
       },
       {
@@ -441,14 +374,32 @@ export const RaffleABI = [
         "type": "uint256"
       },
       {
+        "internalType": "enum Raffle.RaffleStatus",
+        "name": "_status",
+        "type": "uint8"
+      },
+      {
         "internalType": "address",
         "name": "_creator",
         "type": "address"
       },
       {
-        "internalType": "enum Raffle.RaffleStatus",
-        "name": "_status",
-        "type": "uint8"
+        "internalType": "address",
+        "name": "_winner",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getTotalTickets",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -458,23 +409,29 @@ export const RaffleABI = [
     "inputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "_user",
         "type": "address"
       }
     ],
-    "name": "hasJoined",
+    "name": "getUserTicketCount",
     "outputs": [
       {
-        "internalType": "bool",
+        "internalType": "uint256",
         "name": "",
-        "type": "bool"
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_ticketCount",
+        "type": "uint256"
+      }
+    ],
     "name": "joinRaffle",
     "outputs": [],
     "stateMutability": "payable",
@@ -488,19 +445,6 @@ export const RaffleABI = [
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "owner",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -552,31 +496,13 @@ export const RaffleABI = [
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "requestId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256[]",
-        "name": "randomWords",
-        "type": "uint256[]"
-      }
-    ],
-    "name": "rawFulfillRandomWords",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
     "inputs": [],
-    "name": "s_vrfCoordinator",
+    "name": "status",
     "outputs": [
       {
-        "internalType": "contract IVRFCoordinatorV2Plus",
+        "internalType": "enum Raffle.RaffleStatus",
         "name": "",
-        "type": "address"
+        "type": "uint8"
       }
     ],
     "stateMutability": "view",
@@ -586,23 +512,16 @@ export const RaffleABI = [
     "inputs": [
       {
         "internalType": "address",
-        "name": "_vrfCoordinator",
+        "name": "",
         "type": "address"
       }
     ],
-    "name": "setCoordinator",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "status",
+    "name": "ticketCount",
     "outputs": [
       {
-        "internalType": "enum Raffle.RaffleStatus",
+        "internalType": "uint256",
         "name": "",
-        "type": "uint8"
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -619,19 +538,6 @@ export const RaffleABI = [
       }
     ],
     "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
-      }
-    ],
-    "name": "transferOwnership",
-    "outputs": [],
-    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

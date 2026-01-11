@@ -2,17 +2,21 @@
 pragma solidity ^0.8.24;
 
 import "./Raffle.sol";
+import "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
+import "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
 /**
  * @title RaffleFactory
  * @notice Factory contract to create and manage multiple raffles
- * @dev Deploys new Raffle contracts with Chainlink VRF configuration
+ * @dev Deploys new Raffle contracts and handles Chainlink VRF requests for all raffles
  */
-contract RaffleFactory {
-    // Chainlink VRF Configuration (immutable for all raffles)
-    address public immutable vrfCoordinator;
+contract RaffleFactory is VRFConsumerBaseV2Plus {
+    // Chainlink VRF Configuration
     bytes32 public immutable keyHash;
     uint256 public immutable subscriptionId;
+    uint16 private constant REQUEST_CONFIRMATIONS = 3;
+    uint32 private constant CALLBACK_GAS_LIMIT = 300000;
+    uint32 private constant NUM_WORDS = 1;
 
     // All deployed raffles
     address[] public allRaffles;
@@ -22,6 +26,9 @@ contract RaffleFactory {
 
     // Mapping to check if address is a raffle
     mapping(address => bool) public isRaffle;
+
+    // Mapping from VRF requestId to raffle address
+    mapping(uint256 => address) public requestIdToRaffle;
 
     // Events
     event RaffleCreated(
@@ -33,6 +40,9 @@ contract RaffleFactory {
         uint256 maxParticipants
     );
 
+    event RandomnessRequested(address indexed raffle, uint256 indexed requestId);
+    event RandomnessFulfilled(address indexed raffle, uint256 indexed requestId, uint256 randomWord);
+
     /**
      * @notice Initialize factory with Chainlink VRF configuration
      * @param _vrfCoordinator Chainlink VRF Coordinator address
@@ -43,10 +53,7 @@ contract RaffleFactory {
         address _vrfCoordinator,
         bytes32 _keyHash,
         uint256 _subscriptionId
-    ) {
-        require(_vrfCoordinator != address(0), "Invalid VRF Coordinator");
-
-        vrfCoordinator = _vrfCoordinator;
+    ) VRFConsumerBaseV2Plus(_vrfCoordinator) {
         keyHash = _keyHash;
         subscriptionId = _subscriptionId;
     }
@@ -69,7 +76,7 @@ contract RaffleFactory {
         uint256 _deadline,
         uint256 _maxParticipants
     ) external returns (address raffleAddress) {
-        // Create new raffle contract
+        // Create new raffle contract (pass factory address)
         Raffle newRaffle = new Raffle(
             _title,
             _description,
@@ -77,9 +84,7 @@ contract RaffleFactory {
             _entryFee,
             _deadline,
             _maxParticipants,
-            vrfCoordinator,
-            keyHash,
-            subscriptionId
+            address(this) // Pass factory address instead of VRF coordinator
         );
 
         raffleAddress = address(newRaffle);
@@ -99,6 +104,52 @@ contract RaffleFactory {
         );
 
         return raffleAddress;
+    }
+
+    /**
+     * @notice Request randomness for a raffle (called by Raffle contracts)
+     * @return requestId VRF request ID
+     */
+    function requestRandomnessForRaffle() external returns (uint256 requestId) {
+        require(isRaffle[msg.sender], "Only raffle contracts can request");
+
+        // Request randomness from Chainlink VRF
+        requestId = s_vrfCoordinator.requestRandomWords(
+            VRFV2PlusClient.RandomWordsRequest({
+                keyHash: keyHash,
+                subId: subscriptionId,
+                requestConfirmations: REQUEST_CONFIRMATIONS,
+                callbackGasLimit: CALLBACK_GAS_LIMIT,
+                numWords: NUM_WORDS,
+                extraArgs: VRFV2PlusClient._argsToBytes(
+                    VRFV2PlusClient.ExtraArgsV1({nativePayment: false})
+                )
+            })
+        );
+
+        // Store mapping
+        requestIdToRaffle[requestId] = msg.sender;
+
+        emit RandomnessRequested(msg.sender, requestId);
+
+        return requestId;
+    }
+
+    /**
+     * @notice Callback function used by VRF Coordinator
+     * @param _requestId VRF request ID
+     * @param _randomWords Array of random values
+     */
+    function fulfillRandomWords(uint256 _requestId, uint256[] calldata _randomWords) internal override {
+        address raffleAddress = requestIdToRaffle[_requestId];
+        require(raffleAddress != address(0), "Invalid request ID");
+
+        uint256 randomWord = _randomWords[0];
+
+        // Forward the random number to the raffle
+        Raffle(raffleAddress).fulfillRandomness(_requestId, randomWord);
+
+        emit RandomnessFulfilled(raffleAddress, _requestId, randomWord);
     }
 
     // View functions

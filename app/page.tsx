@@ -2,11 +2,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { RaffleGrid } from '@/components/raffle/RaffleGrid';
-import { getFeaturedRaffles } from '@/lib/utils/mockData';
 
 export default function Home() {
-  const featuredRaffles = getFeaturedRaffles(3);
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -125,30 +122,6 @@ export default function Home() {
                 </div>
               </div>
             </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Raffles */}
-      <section className="py-20 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">
-              Featured <span className="text-gradient">Raffles</span>
-            </h2>
-            <p className="text-text-secondary">
-              Check out these active raffles and join now
-            </p>
-          </div>
-
-          <RaffleGrid raffles={featuredRaffles} />
-
-          <div className="text-center mt-8">
-            <Link href="/explore">
-              <Button size="lg" variant="secondary">
-                View All Raffles
-              </Button>
-            </Link>
           </div>
         </div>
       </section>

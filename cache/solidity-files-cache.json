@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/home/yeekap/raffle-party-platform/contracts/Raffle.sol": {
-      "lastModificationDate": 1767985742336,
-      "contentHash": "6c3a33a4c921eac00a0cc1030808b5bf",
+      "lastModificationDate": 1768054897288,
+      "contentHash": "a1e9a5143dc1b74b28bb5113aedb19c2",
       "sourceName": "contracts/Raffle.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -29,16 +29,12 @@
           }
         }
       },
-      "imports": [
-        "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol",
-        "@chainlink/contracts/src/v0.8/vrf/dev/interfaces/IVRFCoordinatorV2Plus.sol",
-        "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol",
-        "@chainlink/contracts/src/v0.8/automation/interfaces/AutomationCompatibleInterface.sol"
-      ],
+      "imports": [],
       "versionPragmas": [
         "^0.8.24"
       ],
       "artifacts": [
+        "IRaffleFactory",
         "Raffle"
       ]
     },
@@ -115,8 +111,8 @@
       ]
     },
     "/home/yeekap/raffle-party-platform/contracts/RaffleFactory.sol": {
-      "lastModificationDate": 1767906414642,
-      "contentHash": "56519df500007763885278d29e6e2394",
+      "lastModificationDate": 1768054856618,
+      "contentHash": "e4d8241e95fda23e95dba81e4ef5faab",
       "sourceName": "contracts/RaffleFactory.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -143,7 +139,9 @@
         }
       },
       "imports": [
-        "./Raffle.sol"
+        "./Raffle.sol",
+        "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol",
+        "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol"
       ],
       "versionPragmas": [
         "^0.8.24"

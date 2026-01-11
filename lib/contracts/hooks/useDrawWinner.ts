@@ -1,5 +1,5 @@
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { RaffleABI } from '../abis/Raffle';
 
@@ -10,6 +10,12 @@ interface UseDrawWinnerOptions {
 
 export function useDrawWinner(raffleAddress: string, options?: UseDrawWinnerOptions) {
   const { writeContract, data: hash, error, isPending } = useWriteContract();
+  const optionsRef = useRef(options);
+
+  // Update ref when options change
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
 
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
     hash,
@@ -18,16 +24,18 @@ export function useDrawWinner(raffleAddress: string, options?: UseDrawWinnerOpti
   useEffect(() => {
     if (isSuccess) {
       toast.success('Winner drawn successfully! Waiting for VRF response...', { id: 'draw-winner' });
-      options?.onSuccess?.();
+      optionsRef.current?.onSuccess?.();
     }
-  }, [isSuccess, options]);
+  }, [isSuccess]);
 
   useEffect(() => {
     if (error) {
-      toast.error(error.message || 'Failed to draw winner', { id: 'draw-winner' });
-      options?.onError?.(error as Error);
+      console.error('Draw winner error:', error);
+      const errorMessage = error.message || 'Failed to draw winner';
+      toast.error(errorMessage, { id: 'draw-winner', duration: 10000 });
+      optionsRef.current?.onError?.(error as Error);
     }
-  }, [error, options]);
+  }, [error]);
 
   useEffect(() => {
     if (isConfirming) {
@@ -43,6 +51,7 @@ export function useDrawWinner(raffleAddress: string, options?: UseDrawWinnerOpti
         address: raffleAddress as `0x${string}`,
         abi: RaffleABI,
         functionName: 'drawWinner',
+        gas: BigInt(500000), // Set reasonable gas limit for VRF request
       });
     } catch (err) {
       console.error('Error drawing winner:', err);

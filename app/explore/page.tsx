@@ -2,34 +2,26 @@
 
 import { useState } from 'react';
 import { useAccount } from 'wagmi';
-import { RaffleGrid } from '@/components/raffle/RaffleGrid';
 import { RaffleCardFromAddress } from '@/components/raffle/RaffleCardFromAddress';
 import { Badge } from '@/components/ui/Badge';
 import { RaffleStatus } from '@/lib/types/raffle';
-import { mockRaffles } from '@/lib/utils/mockData';
 import { useAllRaffles } from '@/lib/contracts/hooks/useAllRaffles';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import Link from 'next/link';
 
 export default function ExplorePage() {
-  const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'ended' | 'drawn'>('all');
+  const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'ended'>('all');
   const { address } = useAccount();
   const { raffleAddresses, isLoading } = useAllRaffles();
 
-  // Use blockchain data if available, otherwise fall back to mock data
   const hasBlockchainRaffles = raffleAddresses && raffleAddresses.length > 0;
-  const displayRaffles = !hasBlockchainRaffles ? mockRaffles : [];
-
-  // Filter mock raffles by status (only used when no blockchain raffles)
-  const filteredRaffles = selectedStatus === 'all'
-    ? displayRaffles
-    : displayRaffles.filter(r => r.status === selectedStatus);
 
   const statusFilters = [
-    { value: 'all' as const, label: 'All Raffles', count: hasBlockchainRaffles ? raffleAddresses.length : displayRaffles.length },
-    { value: 'active' as const, label: 'Active', count: hasBlockchainRaffles ? raffleAddresses.length : displayRaffles.filter(r => r.status === 'active').length },
-    { value: 'ended' as const, label: 'Ended', count: 0 },
-    { value: 'drawn' as const, label: 'Drawn', count: 0 },
+    { value: 'all' as const, label: 'All Raffles' },
+    { value: 'active' as const, label: 'Active' },
+    { value: 'ended' as const, label: 'Ended' },
   ];
 
   return (
@@ -58,7 +50,7 @@ export default function ExplorePage() {
           ) : (
             <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg inline-block">
               <p className="text-sm text-blue-400">
-                ℹ No on-chain raffles yet • Showing demo data • Create the first raffle!
+                ℹ No on-chain raffles yet • Create the first raffle!
               </p>
             </div>
           )}
@@ -77,7 +69,7 @@ export default function ExplorePage() {
                     : 'bg-background-secondary text-text-secondary hover:bg-background-tertiary'
                 }`}
               >
-                {filter.label} ({filter.count})
+                {filter.label}
               </button>
             ))}
           </div>
@@ -86,7 +78,7 @@ export default function ExplorePage() {
         {/* Results Count */}
         <div className="mb-6">
           <p className="text-text-muted">
-            Showing {hasBlockchainRaffles ? raffleAddresses.length : filteredRaffles.length} {hasBlockchainRaffles ? (raffleAddresses.length === 1 ? 'raffle' : 'raffles') : (filteredRaffles.length === 1 ? 'raffle' : 'raffles')}
+            Showing {raffleAddresses?.length || 0} {raffleAddresses?.length === 1 ? 'raffle' : 'raffles'}
           </p>
         </div>
 
@@ -98,14 +90,21 @@ export default function ExplorePage() {
                 key={raffleAddress}
                 raffleAddress={raffleAddress}
                 userAddress={address}
+                filterStatus={selectedStatus}
               />
             ))}
           </div>
         ) : (
-          <RaffleGrid
-            raffles={filteredRaffles}
-            emptyMessage="No raffles found with the selected filters"
-          />
+          <Card className="p-12 text-center">
+            <div className="text-6xl mb-4">🎉</div>
+            <h3 className="text-2xl font-bold mb-2">No Raffles Yet</h3>
+            <p className="text-text-secondary mb-6">
+              Be the first to create a raffle on this platform!
+            </p>
+            <Link href="/create">
+              <Button size="lg">Create First Raffle</Button>
+            </Link>
+          </Card>
         )}
       </div>
     </div>

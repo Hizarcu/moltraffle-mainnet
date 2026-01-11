@@ -6,10 +6,11 @@ import toast from 'react-hot-toast';
 interface UseJoinRaffleParams {
   raffleAddress: string;
   entryFee: bigint;
+  ticketCount: number;
   onSuccess?: () => void;
 }
 
-export function useJoinRaffle({ raffleAddress, entryFee, onSuccess }: UseJoinRaffleParams) {
+export function useJoinRaffle({ raffleAddress, entryFee, ticketCount, onSuccess }: UseJoinRaffleParams) {
   const [isJoining, setIsJoining] = useState(false);
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
 
@@ -28,13 +29,15 @@ export function useJoinRaffle({ raffleAddress, entryFee, onSuccess }: UseJoinRaf
 
       console.log('=== Calling joinRaffle ===');
       console.log('Raffle Address:', raffleAddress);
-      console.log('Entry Fee (Wei):', entryFee.toString());
+      console.log('Ticket Count:', ticketCount);
+      console.log('Total Value (Wei):', entryFee.toString());
 
-      // Call contract using writeContractAsync for proper async handling
+      // Call contract with ticketCount parameter
       const hash = await writeContractAsync({
         address: raffleAddress as `0x${string}`,
         abi: RaffleABI,
         functionName: 'joinRaffle',
+        args: [BigInt(ticketCount)],
         value: entryFee,
       });
 

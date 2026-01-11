@@ -6,7 +6,6 @@ import { useDrawWinner } from '@/lib/contracts/hooks/useDrawWinner';
 
 interface DrawWinnerButtonProps {
   raffleAddress: string;
-  isCreator: boolean;
   hasEnded: boolean;
   hasParticipants: boolean;
   hasWinner: boolean;
@@ -15,7 +14,6 @@ interface DrawWinnerButtonProps {
 
 export function DrawWinnerButton({
   raffleAddress,
-  isCreator,
   hasEnded,
   hasParticipants,
   hasWinner,
@@ -28,31 +26,11 @@ export function DrawWinnerButton({
     return null;
   }
 
-  // Not creator - show waiting status
-  if (!isCreator) {
-    if (!hasEnded) {
-      return (
-        <Card variant="glass" className="p-4">
-          <p className="text-center text-text-secondary text-sm">
-            ⏳ Waiting for deadline to pass...
-          </p>
-        </Card>
-      );
-    }
-    return (
-      <Card variant="glass" className="p-4">
-        <p className="text-center text-text-secondary text-sm">
-          🎲 Waiting for creator to draw winner...
-        </p>
-      </Card>
-    );
-  }
-
-  // Creator view - show appropriate button
+  // Not ready to draw yet - show disabled button
   if (!hasEnded) {
     return (
       <Button disabled className="w-full">
-        Draw Winner (Available After Deadline)
+        Draw Winner (Not Ready Yet)
       </Button>
     );
   }
@@ -71,7 +49,7 @@ export function DrawWinnerButton({
       disabled={isDrawing}
       className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
     >
-      {isDrawing ? 'Drawing Winner...' : '🎲 Draw Winner with Chainlink VRF'}
+      {isDrawing ? 'Drawing Winner...' : 'Draw Winner'}
     </Button>
   );
 }

@@ -2,10 +2,10 @@
   "network": "sepolia",
   "chainId": 11155111,
   "deployer": "0x78AD665E8F952a471d012f74F4A6cdeBF2468a17",
-  "timestamp": "2026-01-08T21:16:49.691Z",
+  "timestamp": "2026-01-10T14:22:24.526Z",
   "contracts": {
     "RaffleFactory": {
-      "address": "0x682Ae916B80B265D15efB6898Ccaf0f82fA469A4",
+      "address": "0xA5162a3132341bF0Beca924C0f0809F97bd0550c",
       "vrfCoordinator": "0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B",
       "keyHash": "0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae",
       "subscriptionId": "14611502562319117444287992466100242553520897061056224868212614241477657993386"

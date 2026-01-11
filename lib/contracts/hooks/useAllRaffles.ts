@@ -60,7 +60,7 @@ export function useRaffleDetails(raffleAddress: string) {
   const { data: raffleInfo, isLoading: isLoadingInfo } = useReadContract({
     address: raffleAddress as `0x${string}`,
     abi: RaffleABI,
-    functionName: 'getRaffleInfo',
+    functionName: 'getRaffleDetails',
     query: {
       enabled: !!raffleAddress,
       refetchInterval: 30000,
@@ -103,18 +103,39 @@ export function useRaffleDetails(raffleAddress: string) {
     },
   });
 
+  const { data: prizeDescription } = useReadContract({
+    address: raffleAddress as `0x${string}`,
+    abi: RaffleABI,
+    functionName: 'prizeDescription',
+    query: {
+      enabled: !!raffleAddress,
+    },
+  });
+
+  const { data: winnerIndex } = useReadContract({
+    address: raffleAddress as `0x${string}`,
+    abi: RaffleABI,
+    functionName: 'winnerIndex',
+    query: {
+      enabled: !!raffleAddress,
+    },
+  });
+
   // Transform blockchain data to Raffle type
+  // getRaffleDetails returns: (title, description, entryFee, deadline, maxParticipants, currentParticipants, status, creator, winner)
   const raffle: Raffle | null = raffleInfo ? (() => {
-    const deadlineTimestamp = Number((raffleInfo as any)[4]);
+    const deadlineTimestamp = Number((raffleInfo as any)[3]);
     const deadlineDate = new Date(deadlineTimestamp * 1000);
-    const contractStatus = (raffleInfo as any)[8];
+    const contractStatus = (raffleInfo as any)[6];
     const currentTime = Date.now();
     const hasWinner = winner && winner !== '0x0000000000000000000000000000000000000000';
 
-    // WORKAROUND: Contract status logic is buggy, calculate status ourselves
-    // Status priority: DRAWN > ENDED > ACTIVE
+    // Check contract status - CANCELLED (4) takes priority
+    // Otherwise calculate status ourselves as a workaround for buggy contract logic
     let actualStatus: number;
-    if (hasWinner) {
+    if (contractStatus === 4) {
+      actualStatus = 4; // CANCELLED - prize was claimed or raffle cancelled
+    } else if (hasWinner) {
       actualStatus = 2; // DRAWN - winner has been selected
     } else if (deadlineDate.getTime() <= currentTime) {
       actualStatus = 1; // ENDED - deadline passed but no winner yet
@@ -128,14 +149,14 @@ export function useRaffleDetails(raffleAddress: string) {
     console.log('Deadline (Date):', deadlineDate.toISOString());
     console.log('Current Time:', new Date(currentTime).toISOString());
     console.log('Time until deadline (ms):', deadlineDate.getTime() - currentTime);
-    console.log('Status from contract:', contractStatus, '(BUGGY - ignoring)');
+    console.log('Status from contract:', contractStatus);
     console.log('Calculated status:', actualStatus, actualStatus === 0 ? '(ACTIVE)' : actualStatus === 1 ? '(ENDED)' : '(DRAWN)');
     console.log('Has winner:', hasWinner);
     console.log('========================');
 
-    const entryFeeWei = (raffleInfo as any)[3] as bigint;
+    const entryFeeWei = (raffleInfo as any)[2] as bigint;
     const entryFeeEth = parseFloat(formatEther(entryFeeWei));
-    const participantCount = Number((raffleInfo as any)[6]);
+    const participantCount = Number((raffleInfo as any)[5]);
     const prizePoolEth = entryFeeEth * participantCount;
 
     return {
@@ -143,11 +164,11 @@ export function useRaffleDetails(raffleAddress: string) {
       contractAddress: raffleAddress,
       title: (raffleInfo as any)[0],
       description: (raffleInfo as any)[1],
-      prizeDescription: (raffleInfo as any)[2],
+      prizeDescription: prizeDescription as string || '',
       entryFee: entryFeeWei,
       entryFeeFormatted: `${entryFeeEth} ETH`,
       deadline: deadlineDate,
-      maxParticipants: Number((raffleInfo as any)[5]),
+      maxParticipants: Number((raffleInfo as any)[4]),
       currentParticipants: participantCount,
       creator: (raffleInfo as any)[7],
       status: actualStatus as unknown as RaffleStatus,
@@ -159,7 +180,7 @@ export function useRaffleDetails(raffleAddress: string) {
       winner: winner as string | undefined,
       vrfRequestId: vrfRequestId ? String(vrfRequestId) : undefined,
       randomNumber: randomResult ? BigInt(String(randomResult)) : undefined,
-      winnerIndex: undefined,
+      winnerIndex: winnerIndex ? Number(winnerIndex) : undefined,
       chainId: 11155111, // Sepolia
     };
   })() : null;
