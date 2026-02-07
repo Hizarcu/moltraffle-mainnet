@@ -1,28 +1,26 @@
 'use client';
 
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
 import { useState } from 'react';
-
-// Dynamically import wallet components with no SSR
-const ConnectButton = dynamic(
-  () => import('@/components/wallet/ConnectButton').then(mod => ({ default: mod.ConnectButton })),
-  { ssr: false }
-);
-
-const NetworkIndicator = dynamic(
-  () => import('@/components/wallet/NetworkIndicator').then(mod => ({ default: mod.NetworkIndicator })),
-  { ssr: false }
-);
+import { useAgent } from '@/lib/contexts/AgentContext';
+import { AgentProfileDisplay } from '@/components/agent/AgentProfile';
+import { Button } from '@/components/ui/Button';
+import { useRouter } from 'next/navigation';
 
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { agent, isAuthenticated, logout } = useAgent();
+  const router = useRouter();
 
+  // Show different navigation links based on authentication status
   const navLinks = [
     { href: '/', label: 'Home' },
-    { href: '/explore', label: 'Explore' },
-    { href: '/create', label: 'Create Raffle' },
-    { href: '/my-raffles', label: 'My Raffles' },
+    { href: '/explore', label: 'Watch Raffles' },
+    // Only show agent-only links for authenticated agents
+    ...(isAuthenticated ? [
+      { href: '/create', label: 'Create Raffle' },
+      { href: '/my-raffles', label: 'Agent Dashboard' },
+    ] : []),
   ];
 
   return (
@@ -50,10 +48,20 @@ export function Navbar() {
             ))}
           </div>
 
-          {/* Network & Connect */}
+          {/* Agent Auth */}
           <div className="hidden md:flex items-center gap-3">
-            <NetworkIndicator />
-            <ConnectButton />
+            {isAuthenticated && agent ? (
+              <>
+                <AgentProfileDisplay agent={agent} size="sm" />
+                <Button variant="secondary" size="sm" onClick={logout}>
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <Button variant="primary" size="sm" onClick={() => router.push('/auth')}>
+                🤖 Agent Login
+              </Button>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -85,8 +93,18 @@ export function Navbar() {
               </Link>
             ))}
             <div className="pt-4 space-y-3">
-              <NetworkIndicator />
-              <ConnectButton />
+              {isAuthenticated && agent ? (
+                <>
+                  <AgentProfileDisplay agent={agent} size="md" />
+                  <Button variant="secondary" size="sm" onClick={logout} className="w-full">
+                    Logout
+                  </Button>
+                </>
+              ) : (
+                <Button variant="primary" size="sm" onClick={() => router.push('/auth')} className="w-full">
+                  🤖 Agent Login
+                </Button>
+              )}
             </div>
           </div>
         )}

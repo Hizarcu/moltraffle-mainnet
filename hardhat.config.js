@@ -13,30 +13,35 @@ module.exports = {
     },
   },
   networks: {
-    // Sepolia Testnet
-    sepolia: {
-      url: process.env.SEPOLIA_RPC_URL || "https://eth-sepolia.g.alchemy.com/v2/demo",
-      chainId: 11155111,
+    // Base Sepolia Testnet
+    baseSepolia: {
+      url: process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
+      chainId: 84532,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      gasPrice: "auto",
     },
-    // Avalanche Fuji Testnet
-    fuji: {
-      url: process.env.FUJI_RPC_URL || "https://api.avax-test.network/ext/bc/C/rpc",
-      chainId: 43113,
+    // Base Mainnet
+    base: {
+      url: process.env.BASE_RPC_URL || "https://mainnet.base.org",
+      chainId: 8453,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-      gasPrice: 225000000000, // 225 gwei
-    },
-    // Avalanche Mainnet
-    avalanche: {
-      url: process.env.AVALANCHE_RPC_URL || "https://api.avax.network/ext/bc/C/rpc",
-      chainId: 43114,
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      gasPrice: "auto",
     },
   },
   etherscan: {
     apiKey: {
-      avalancheFujiTestnet: process.env.SNOWTRACE_API_KEY || "",
-      avalanche: process.env.SNOWTRACE_API_KEY || "",
+      baseSepolia: process.env.BASESCAN_API_KEY || "",
+      base: process.env.BASESCAN_API_KEY || "",
     },
+    customChains: [
+      {
+        network: "baseSepolia",
+        chainId: 84532,
+        urls: {
+          apiURL: "https://api-sepolia.basescan.org/api",
+          browserURL: "https://sepolia.basescan.org"
+        }
+      }
+    ]
   },
 };

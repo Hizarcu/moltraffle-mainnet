@@ -5,7 +5,7 @@ const path = require("path");
 async function main() {
   // Get network name
   const network = await ethers.provider.getNetwork();
-  const networkName = network.name === "unknown" ? "sepolia" : network.name;
+  const networkName = network.name === "unknown" ? "baseSepolia" : network.name;
 
   console.log(`🚀 Deploying Raffle Party Platform to ${networkName}...\n`);
 
@@ -17,9 +17,9 @@ async function main() {
   const balance = await ethers.provider.getBalance(deployer.address);
   console.log("💰 Account balance:", ethers.formatEther(balance), "ETH\n");
 
-  // Chainlink VRF Configuration - Sepolia
-  const VRF_COORDINATOR = process.env.VRF_COORDINATOR_SEPOLIA || "0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B";
-  const KEY_HASH = process.env.VRF_KEY_HASH_SEPOLIA || "0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae";
+  // Chainlink VRF Configuration - Base Sepolia
+  const VRF_COORDINATOR = process.env.VRF_COORDINATOR_BASE_SEPOLIA || "0x5C210eF41CD1a72de73bF76eC39637bB0d3d7BEE";
+  const KEY_HASH = process.env.VRF_KEY_HASH_BASE_SEPOLIA || "0xc799bd1e3bd4d1a41cd4968997a4e03dfd2a3c7c04b695881138580163f42887";
   const SUBSCRIPTION_ID = process.env.VRF_SUBSCRIPTION_ID || "0";
 
   if (SUBSCRIPTION_ID === "0") {
@@ -99,8 +99,8 @@ async function main() {
   console.log("   1. Go to https://vrf.chain.link/");
   console.log("   2. Create a subscription and fund it with LINK");
   console.log("   3. Add this contract as a consumer:", factoryAddress);
-  console.log("   4. Verify contract on Snowtrace (optional):");
-  console.log(`      npx hardhat verify --network fuji ${factoryAddress} "${VRF_COORDINATOR}" "${KEY_HASH}" ${SUBSCRIPTION_ID}`);
+  console.log("   4. Verify contract on Basescan (optional):");
+  console.log(`      npx hardhat verify --network baseSepolia ${factoryAddress} "${VRF_COORDINATOR}" "${KEY_HASH}" ${SUBSCRIPTION_ID}`);
   console.log("\n✨ Your raffle platform is ready to use!");
 }
 

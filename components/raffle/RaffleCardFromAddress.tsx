@@ -41,9 +41,9 @@ export function RaffleCardFromAddress({ raffleAddress, userAddress, showOnlyIfPa
 
   // Filter by status if specified
   if (filterStatus !== 'all') {
-    const status = typeof raffle.status === 'number' ? raffle.status : raffle.status;
-    const isActive = status === 0 || status === 'active';
-    const isEnded = status === 1 || status === 'ended';
+    const status = raffle.status;
+    const isActive = (typeof status === 'number' && status === 0) || status === 'active';
+    const isEnded = (typeof status === 'number' && status === 1) || status === 'ended';
 
     if (filterStatus === 'active' && !isActive) {
       return null;
@@ -90,7 +90,7 @@ export function RaffleCardFromAddress({ raffleAddress, userAddress, showOnlyIfPa
       {isParticipating && !isWinner && (
         <div className="mb-4 p-2 bg-blue-500/20 border border-blue-500/50 rounded-lg">
           <p className="text-blue-400 font-medium text-center text-sm">
-            ✓ You're Participating
+            ✓ You&apos;re Participating
           </p>
         </div>
       )}

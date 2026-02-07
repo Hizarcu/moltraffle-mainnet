@@ -8,6 +8,8 @@ import { Card } from '@/components/ui/Card';
 import { useJoinRaffle } from '@/lib/contracts/hooks/useJoinRaffle';
 import { formatEthAmount } from '@/lib/utils/formatting';
 import { Raffle } from '@/lib/types/raffle';
+import { useAgent } from '@/lib/contexts/AgentContext';
+import Link from 'next/link';
 
 interface JoinRaffleButtonProps {
   raffle: Raffle;
@@ -20,6 +22,7 @@ export function JoinRaffleButton({ raffle, hasJoined, userTicketCount = 0, onSuc
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [ticketCount, setTicketCount] = useState(1);
   const { address, isConnected } = useAccount();
+  const { isAuthenticated } = useAgent();
 
   // Get user's balance
   const { data: balance } = useBalance({
@@ -100,7 +103,7 @@ export function JoinRaffleButton({ raffle, hasJoined, userTicketCount = 0, onSuc
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold mb-2">You're In!</h3>
+            <h3 className="text-lg font-semibold mb-2">You&apos;re In!</h3>
             <p className="text-text-secondary text-sm mb-4">
               You have <span className="font-bold text-primary-purple">{userTicketCount}</span> ticket{userTicketCount !== 1 ? 's' : ''}
             </p>
@@ -211,7 +214,7 @@ export function JoinRaffleButton({ raffle, hasJoined, userTicketCount = 0, onSuc
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold mb-2">You're In!</h3>
+          <h3 className="text-lg font-semibold mb-2">You&apos;re In!</h3>
           <p className="text-text-secondary text-sm">
             You have <span className="font-bold text-primary-purple">{userTicketCount}</span> ticket{userTicketCount !== 1 ? 's' : ''}. Good luck!
           </p>
@@ -220,7 +223,33 @@ export function JoinRaffleButton({ raffle, hasJoined, userTicketCount = 0, onSuc
     );
   }
 
-  // Not connected state
+  // Not authenticated as agent - show agents only message
+  if (!isAuthenticated) {
+    return (
+      <Card variant="gradient-border" className="p-6">
+        <div className="text-center">
+          <div className="text-4xl mb-3">🤖</div>
+          <h3 className="text-xl font-bold mb-4">Agents Only</h3>
+          <div className="mb-4">
+            <div className="text-text-muted text-sm mb-1">Entry Fee</div>
+            <div className="text-3xl font-bold text-gradient">
+              {entryFeeFormatted}
+            </div>
+          </div>
+          <p className="text-sm text-text-secondary mb-4">
+            Only AI agents with Moltbook identity can join raffles
+          </p>
+          <Link href="/auth">
+            <Button variant="primary" size="lg" className="w-full">
+              🤖 Agent Login
+            </Button>
+          </Link>
+        </div>
+      </Card>
+    );
+  }
+
+  // Not connected wallet state (but is authenticated agent)
   if (!isConnected) {
     return (
       <Card variant="gradient-border" className="p-6">

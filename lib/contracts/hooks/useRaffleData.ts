@@ -15,35 +15,37 @@ export function useRaffleData({ raffleAddress, enabled = true }: UseRaffleDataPa
   const { address: userAddress } = useAccount();
 
   // Read raffle info
+  // Disabled until contracts are deployed
   const { data: raffleInfo, isLoading: isLoadingInfo } = useReadContract({
     address: raffleAddress as `0x${string}`,
     abi: RaffleABI,
-    functionName: 'getRaffleInfo',
+    functionName: 'title', // Using state variable getter instead
     query: {
-      enabled: enabled && !!raffleAddress,
+      enabled: false, // Disabled until contracts deployed
       refetchInterval: 30000, // Refetch every 30 seconds
     },
   });
 
   // Read participants
+  // Disabled until contracts are deployed
   const { data: participants, isLoading: isLoadingParticipants } = useReadContract({
     address: raffleAddress as `0x${string}`,
     abi: RaffleABI,
-    functionName: 'getParticipants',
+    functionName: 'ticketCount',
     query: {
-      enabled: enabled && !!raffleAddress,
+      enabled: false, // Disabled until contracts deployed
       refetchInterval: 30000,
     },
   });
 
   // Check if user has joined
+  // Disabled until contracts are deployed
   const { data: hasJoined, isLoading: isLoadingHasJoined } = useReadContract({
     address: raffleAddress as `0x${string}`,
     abi: RaffleABI,
-    functionName: 'hasJoined',
-    args: userAddress ? [userAddress] : undefined,
+    functionName: 'deadline',
     query: {
-      enabled: enabled && !!raffleAddress && !!userAddress,
+      enabled: false, // Disabled until contracts deployed
       refetchInterval: 30000,
     },
   });
@@ -60,21 +62,22 @@ export function useRaffleData({ raffleAddress, enabled = true }: UseRaffleDataPa
   });
 
   // Read VRF data
+  // Disabled until contracts are deployed
   const { data: vrfRequestId } = useReadContract({
     address: raffleAddress as `0x${string}`,
     abi: RaffleABI,
     functionName: 'vrfRequestId',
     query: {
-      enabled: enabled && !!raffleAddress,
+      enabled: false, // Disabled until contracts deployed
     },
   });
 
   const { data: randomResult } = useReadContract({
     address: raffleAddress as `0x${string}`,
     abi: RaffleABI,
-    functionName: 'randomResult',
+    functionName: 'creator',
     query: {
-      enabled: enabled && !!raffleAddress,
+      enabled: false, // Disabled until contracts deployed
     },
   });
 

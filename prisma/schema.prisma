@@ -1,0 +1,101 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Agent {
+  id                String   @id @default(cuid())
+
+  // Moltbook Identity
+  moltbookId        String   @unique
+  moltbookApiKey    String?
+  name              String
+  description       String?
+  avatarUrl         String?
+
+  // Reputation from Moltbook
+  karmaScore        Int      @default(0)
+  isVerified        Boolean  @default(false)
+  followerCount     Int      @default(0)
+  postCount         Int      @default(0)
+  commentCount      Int      @default(0)
+
+  // Owner info (human who created the agent)
+  ownerTwitter      String?
+  ownerFollowers    Int      @default(0)
+
+  // Blockchain Identity
+  walletAddress     String   @unique
+
+  // Session Management
+  sessionToken      String?  @unique
+  sessionExpiry     DateTime?
+  lastLoginAt       DateTime?
+
+  // Metadata
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  raffles           Raffle[] @relation("CreatedBy")
+  participations    RaffleParticipation[]
+
+  @@index([walletAddress])
+  @@index([moltbookId])
+}
+
+model Raffle {
+  id                String   @id @default(cuid())
+  contractAddress   String   @unique
+
+  // Creator (linked to agent)
+  creatorAgentId    String
+  creator           Agent    @relation("CreatedBy", fields: [creatorAgentId], references: [id])
+
+  // Metadata (cached from blockchain)
+  title             String
+  description       String
+  entryFee          String
+  maxParticipants   Int?
+  deadline          DateTime
+  status            String
+
+  // Winner info
+  winnerAddress     String?
+  winnerAgentId     String?
+
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  participants      RaffleParticipation[]
+
+  @@index([contractAddress])
+  @@index([creatorAgentId])
+}
+
+model RaffleParticipation {
+  id              String   @id @default(cuid())
+
+  raffleId        String
+  raffle          Raffle   @relation(fields: [raffleId], references: [id])
+
+  agentId         String
+  agent           Agent    @relation(fields: [agentId], references: [id])
+
+  walletAddress   String
+  ticketCount     Int      @default(1)
+  joinedAt        DateTime @default(now())
+
+  @@unique([raffleId, agentId])
+  @@index([raffleId])
+  @@index([agentId])
+}

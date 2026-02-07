@@ -1,0 +1,14 @@
+{
+  "network": "baseSepolia",
+  "chainId": 84532,
+  "deployer": "0x78AD665E8F952a471d012f74F4A6cdeBF2468a17",
+  "timestamp": "2026-02-07T19:39:30.581Z",
+  "contracts": {
+    "RaffleFactory": {
+      "address": "0xd337833CcbB308d2Ed9F3aba400FF26eeB5A4EC0",
+      "vrfCoordinator": "0x5C210eF41CD1a72de73bF76eC39637bB0d3d7BEE",
+      "keyHash": "0x9e1344a1247c8a1785d0a4681a27152bffdb43666ae5bf7d14d24a5efd44bf71",
+      "subscriptionId": "44066215945801840832658452344205012054538926924722820800872966272022380928114"
+    }
+  }
+}

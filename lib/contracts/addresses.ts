@@ -14,6 +14,16 @@ export const CONTRACT_ADDRESSES = {
     RaffleFactory: '0xA5162a3132341bF0Beca924C0f0809F97bd0550c', // Replace with actual address
   },
 
+  // Base Mainnet
+  8453: {
+    RaffleFactory: '0x0000000000000000000000000000000000000000', // Replace with actual address
+  },
+
+  // Base Sepolia Testnet
+  84532: {
+    RaffleFactory: '0xd337833CcbB308d2Ed9F3aba400FF26eeB5A4EC0', // Deployed factory address
+  },
+
   // Avalanche Mainnet
   43114: {
     RaffleFactory: '0x0000000000000000000000000000000000000000', // Replace with actual address

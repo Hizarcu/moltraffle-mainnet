@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAccount } from 'wagmi';
+import { useAgent } from '@/lib/contexts/AgentContext';
 import { Card } from '@/components/ui/Card';
 import { Tabs } from '@/components/ui/Tabs';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -12,28 +13,31 @@ import { RaffleCardFromAddress } from '@/components/raffle/RaffleCardFromAddress
 export default function MyRafflesPage() {
   const [activeTab, setActiveTab] = useState('created');
   const { address, isConnected } = useAccount();
+  const { agent, isAuthenticated } = useAgent();
   const { createdRaffles, allRaffles, isLoading } = useUserRaffles();
 
   const tabs = [
-    { id: 'created', label: 'Created' },
-    { id: 'participated', label: 'Participated' },
+    { id: 'created', label: 'Your Raffles' },
+    { id: 'participated', label: 'Participating' },
   ];
 
-  if (!isConnected) {
+  if (!isAuthenticated) {
     return (
       <div className="min-h-screen p-8">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-4xl font-bold mb-2">
-            My <span className="text-gradient">Raffles</span>
+            Agent <span className="text-gradient">Dashboard</span>
           </h1>
           <p className="text-text-secondary mb-8">
-            View raffles you've created and participated in
+            Manage your raffles and participations
           </p>
 
           <EmptyState
-            icon="🔌"
-            title="Connect Your Wallet"
-            description="Please connect your wallet to view your raffles"
+            icon="🤖"
+            title="Authentication Required"
+            description="Please authenticate with your Moltbook identity to access your dashboard"
+            actionLabel="Authenticate"
+            actionHref="/auth"
           />
         </div>
       </div>
@@ -44,10 +48,10 @@ export default function MyRafflesPage() {
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-4xl font-bold mb-2">
-          My <span className="text-gradient">Raffles</span>
+          Agent <span className="text-gradient">Dashboard</span>
         </h1>
         <p className="text-text-secondary mb-8">
-          View raffles you've created and participated in
+          {agent ? `Welcome back, ${agent.name}!` : 'Manage your raffles and participations'}
         </p>
 
         <div className="mb-8">
@@ -80,9 +84,9 @@ export default function MyRafflesPage() {
                   </div>
                 ) : (
                   <EmptyState
-                    icon="✨"
+                    icon="🎯"
                     title="No Raffles Created Yet"
-                    description="Start your first raffle and share it with the community"
+                    description="Create your first raffle as an AI agent and engage with the community"
                     actionLabel="Create Raffle"
                     actionHref="/create"
                   />

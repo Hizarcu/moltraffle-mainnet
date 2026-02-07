@@ -18,10 +18,14 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { useRaffleDetails } from '@/lib/contracts/hooks/useAllRaffles';
 import { formatAddress, formatDate, getStatusColor } from '@/lib/utils/formatting';
 import { RaffleStatus } from '@/lib/types/raffle';
+import { useAgentProfile } from '@/lib/hooks/useAgentProfile';
+import { AgentProfileDisplay } from '@/components/agent/AgentProfile';
+import { useAgent } from '@/lib/contexts/AgentContext';
 
 export default function RaffleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { address } = useAccount();
+  const { isAuthenticated: isAgent } = useAgent();
   const [refreshKey, setRefreshKey] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -35,6 +39,9 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
 
   // Fetch from blockchain
   const { raffle, isLoading } = useRaffleDetails(id);
+
+  // Fetch creator's agent profile
+  const { data: creatorAgent } = useAgentProfile(raffle?.creator);
 
   // Calculate hasEnded only on client to avoid hydration mismatch
   useEffect(() => {
@@ -92,7 +99,7 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
           <div className="text-6xl mb-4">😕</div>
           <h2 className="text-2xl font-bold mb-2">Raffle Not Found</h2>
           <p className="text-text-secondary mb-6">
-            The raffle you're looking for doesn't exist or has been removed.
+            The raffle you&apos;re looking for doesn&apos;t exist or has been removed.
           </p>
           <Link href="/explore">
             <Button>Browse Other Raffles</Button>
@@ -107,13 +114,13 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
                  raffle.status === 'active' ? 0 :
                  raffle.status === 'ended' ? 1 : 2;
 
-  const hasWinner = raffle.winner && raffle.winner !== '0x0000000000000000000000000000000000000000';
+  const hasWinner = !!(raffle.winner && raffle.winner !== '0x0000000000000000000000000000000000000000');
 
   // Check if prize was already claimed (status = CANCELLED after claiming)
-  const prizeClaimed = status === 4; // RaffleStatus.CANCELLED
+  const prizeClaimed = typeof raffle.status === 'number' && raffle.status === 4; // RaffleStatus.CANCELLED
 
   // Check if max participants reached
-  const isMaxParticipantsReached = raffle.maxParticipants > 0 && raffle.currentParticipants >= raffle.maxParticipants;
+  const isMaxParticipantsReached = (raffle.maxParticipants ?? 0) > 0 && raffle.currentParticipants >= (raffle.maxParticipants ?? 0);
 
   // Ready to draw if deadline passed OR max participants reached
   const isReadyToDraw = hasEnded || isMaxParticipantsReached;
@@ -161,7 +168,7 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
                 {status === 0 ? 'ACTIVE' : status === 1 ? 'ENDED' : 'DRAWN'}
               </Badge>
               {hasJoined && (
-                <Badge variant="info">You're Participating</Badge>
+                <Badge variant="info">You&apos;re Participating</Badge>
               )}
             </div>
             <CountdownTimer deadline={raffle.deadline} />
@@ -259,21 +266,27 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
                 />
               )}
 
-              {/* Draw Winner Button (Anyone Can Draw) */}
-              <DrawWinnerButton
-                raffleAddress={raffle.contractAddress}
-                hasEnded={isReadyToDraw}
-                hasParticipants={hasParticipants}
-                hasWinner={hasWinner}
-                onSuccess={handleDrawSuccess}
-              />
+              {/* Draw Winner Button (Agents Only) */}
+              {isAgent && (
+                <DrawWinnerButton
+                  raffleAddress={raffle.contractAddress}
+                  hasEnded={isReadyToDraw}
+                  hasParticipants={hasParticipants}
+                  hasWinner={hasWinner}
+                  onSuccess={handleDrawSuccess}
+                />
+              )}
 
               {/* Creator Info */}
               <Card variant="glass">
                 <h3 className="font-semibold mb-3">Created By</h3>
-                <p className="font-mono text-sm text-text-secondary break-all">
-                  {formatAddress(raffle.creator, 8)}
-                </p>
+                {creatorAgent ? (
+                  <AgentProfileDisplay agent={creatorAgent} showFullDetails size="md" />
+                ) : (
+                  <p className="font-mono text-sm text-text-secondary break-all">
+                    {formatAddress(raffle.creator, 8)}
+                  </p>
+                )}
               </Card>
 
               {/* Contract Info */}

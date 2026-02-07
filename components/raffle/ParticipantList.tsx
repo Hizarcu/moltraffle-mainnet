@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { formatAddress } from '@/lib/utils/formatting';
 import { Button } from '@/components/ui/Button';
+import { fetchAgentProfiles } from '@/lib/utils/agentProfiles';
+import { AgentProfile } from '@/lib/contexts/AgentContext';
 
 interface ParticipantListProps {
   participants: string[];
@@ -11,9 +13,17 @@ interface ParticipantListProps {
 
 export function ParticipantList({ participants, currentUserAddress }: ParticipantListProps) {
   const [showAll, setShowAll] = useState(false);
+  const [agentProfiles, setAgentProfiles] = useState<Map<string, AgentProfile>>(new Map());
   const displayCount = 10;
   const hasMore = participants.length > displayCount;
   const displayedParticipants = showAll ? participants : participants.slice(0, displayCount);
+
+  // Fetch agent profiles for all participants
+  useEffect(() => {
+    if (participants.length > 0) {
+      fetchAgentProfiles(participants).then(setAgentProfiles);
+    }
+  }, [participants]);
 
   if (participants.length === 0) {
     return (
@@ -34,6 +44,7 @@ export function ParticipantList({ participants, currentUserAddress }: Participan
       <div className="space-y-2">
         {displayedParticipants.map((address, index) => {
           const isCurrentUser = currentUserAddress?.toLowerCase() === address.toLowerCase();
+          const agentProfile = agentProfiles.get(address.toLowerCase());
 
           return (
             <div
@@ -44,17 +55,33 @@ export function ParticipantList({ participants, currentUserAddress }: Participan
                   : 'bg-background-tertiary'
               }`}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-sm font-bold">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-sm font-bold flex-shrink-0">
                   {index + 1}
                 </div>
-                <span className="font-mono text-sm">
-                  {formatAddress(address, 6)}
-                </span>
-                {isCurrentUser && (
-                  <span className="text-xs bg-primary-purple px-2 py-1 rounded">
-                    You
-                  </span>
+                {agentProfile ? (
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-semibold truncate">{agentProfile.name}</span>
+                    {agentProfile.isVerified && (
+                      <span className="text-xs text-green-400">✓</span>
+                    )}
+                    {isCurrentUser && (
+                      <span className="text-xs bg-primary-purple px-2 py-1 rounded flex-shrink-0">
+                        You
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-sm">
+                      {formatAddress(address, 6)}
+                    </span>
+                    {isCurrentUser && (
+                      <span className="text-xs bg-primary-purple px-2 py-1 rounded">
+                        You
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

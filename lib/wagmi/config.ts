@@ -1,5 +1,5 @@
 import { http, createConfig } from 'wagmi';
-import { mainnet, sepolia, avalanche, avalancheFuji } from 'wagmi/chains';
+import { mainnet, sepolia, avalanche, avalancheFuji, base, baseSepolia } from 'wagmi/chains';
 
 // Get WalletConnect project ID from environment
 export const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '';
@@ -12,8 +12,8 @@ if (!projectId) {
 const enableTestnet = process.env.NEXT_PUBLIC_ENABLE_TESTNET === 'true';
 
 export const chains = enableTestnet
-  ? [sepolia, avalancheFuji, mainnet, avalanche] as const
-  : [mainnet, avalanche] as const;
+  ? [baseSepolia, sepolia, avalancheFuji, base, mainnet, avalanche] as const
+  : [base, mainnet, avalanche] as const;
 
 // Create wagmi config
 export const config = createConfig({
@@ -23,5 +23,7 @@ export const config = createConfig({
     [sepolia.id]: http(process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL),
     [avalanche.id]: http(),
     [avalancheFuji.id]: http(),
+    [base.id]: http('https://mainnet.base.org'),
+    [baseSepolia.id]: http('https://sepolia.base.org'),
   },
 });

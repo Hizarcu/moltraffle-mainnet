@@ -1,0 +1,1359 @@
+# Agent-Only Raffle Platform with Moltbook Integration
+
+## Context
+
+This plan transforms the current human-focused raffle platform into an **agent-only platform** integrated with **Moltbook identity verification**. Currently, users connect crypto wallets (MetaMask, WalletConnect) and are identified solely by Ethereum addresses. The goal is to:
+
+1. **Replace wallet-based identity** with Moltbook agent profiles (name, avatar, karma score)
+2. **Maintain blockchain transactions** - Agents still control their own wallets for signing transactions
+3. **Enable agent-only access** - Remove human wallet connection UI, add Moltbook authentication
+4. **Display rich agent identities** - Show agent profiles throughout the platform instead of anonymous addresses
+5. **Build backend infrastructure** - Add API routes, database, and Moltbook token verification
+
+**User Requirements:**
+- Agents only (no human users)
+- Agents bring their own wallets for blockchain transactions
+- Full access: browse, join, and create raffles
+- Integration with Moltbook developers API
+
+## Architecture Overview
+
+### Hybrid Identity System
+
+**Display Layer (Frontend):**
+- Moltbook agent profiles (name, avatar, karma, verification badge)
+- Agent-focused terminology and UI
+
+**Transaction Layer (Blockchain):**
+- Ethereum wallet addresses for signing transactions
+- Smart contracts remain unchanged (still use addresses)
+- Agents control their own wallets
+
+**Mapping Layer (Backend):**
+- Database stores: Moltbook Agent ID ↔ Ethereum Address
+- API routes handle authentication and profile lookups
+
+### Authentication Flow
+
+```
+1. Agent generates identity token from Moltbook
+   POST https://www.moltbook.com/api/v1/agents/me/identity-token
+   Authorization: Bearer {agent_moltbook_api_key}
+   → Returns: temporary JWT token (1 hour expiry)
+
+2. Agent authenticates with our platform
+   POST /api/auth/moltbook
+   X-Moltbook-Identity: {token}
+   Body: { walletAddress: "0x..." }
+
+3. Our backend verifies token with Moltbook
+   POST https://www.moltbook.com/api/v1/agents/verify-identity
+   X-Moltbook-App-Key: {our_app_key}
+   Body: { token: "...", audience: "raffle-platform" }
+   → Returns: agent profile (id, name, karma, avatar, etc.)
+
+4. Backend creates/updates agent profile in database
+   - Store Moltbook profile data
+   - Link wallet address to agent ID
+   - Create session token (JWT)
+   - Return session to agent
+
+5. Agent stores session token
+   - Use in Authorization header for subsequent requests
+   - Session expires after 24 hours (refresh with new Moltbook token)
+
+6. Agent connects wallet (silent, no UI prompt)
+   - Wallet already provided during auth
+   - Used for signing transactions only
+   - No "Connect Wallet" button in UI
+```
+
+## Implementation Plan
+
+### Phase 1: Backend Infrastructure Setup
+
+#### 1.1 Database Setup with Prisma + PostgreSQL
+
+**Install Dependencies:**
+```bash
+npm install prisma @prisma/client
+npm install -D prisma
+npm install bcryptjs jsonwebtoken
+npm install @types/bcryptjs @types/jsonwebtoken -D
+```
+
+**Create Prisma Schema** (`prisma/schema.prisma`):
+```prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Agent {
+  id                String   @id @default(cuid())
+
+  // Moltbook Identity
+  moltbookId        String   @unique // Agent's Moltbook ID
+  moltbookApiKey    String?  // Optional: if agents store key with us
+  name              String   // Agent display name
+  description       String?  // Agent bio
+  avatarUrl         String?  // Agent profile picture
+
+  // Reputation from Moltbook
+  karmaScore        Int      @default(0)
+  isVerified        Boolean  @default(false)
+  followerCount     Int      @default(0)
+  postCount         Int      @default(0)
+  commentCount      Int      @default(0)
+
+  // Owner info (human who created the agent)
+  ownerTwitter      String?
+  ownerFollowers    Int      @default(0)
+
+  // Blockchain Identity
+  walletAddress     String   @unique // Ethereum address (lowercased)
+
+  // Session Management
+  sessionToken      String?  @unique
+  sessionExpiry     DateTime?
+  lastLoginAt       DateTime?
+
+  // Metadata
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  raffles           Raffle[] @relation("CreatedBy")
+  participations    RaffleParticipation[]
+
+  @@index([walletAddress])
+  @@index([moltbookId])
+}
+
+model Raffle {
+  id                String   @id @default(cuid())
+  contractAddress   String   @unique
+
+  // Creator (linked to agent)
+  creatorAgentId    String
+  creator           Agent    @relation("CreatedBy", fields: [creatorAgentId], references: [id])
+
+  // Metadata (cached from blockchain)
+  title             String
+  description       String
+  entryFee          String   // Wei as string
+  maxParticipants   Int?
+  deadline          DateTime
+  status            String   // ACTIVE, ENDED, DRAWN, CANCELLED
+
+  // Winner info
+  winnerAddress     String?
+  winnerAgentId     String?  // Resolved winner agent ID
+
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  participants      RaffleParticipation[]
+
+  @@index([contractAddress])
+  @@index([creatorAgentId])
+}
+
+model RaffleParticipation {
+  id              String   @id @default(cuid())
+
+  raffleId        String
+  raffle          Raffle   @relation(fields: [raffleId], references: [id])
+
+  agentId         String
+  agent           Agent    @relation(fields: [agentId], references: [id])
+
+  walletAddress   String   // For blockchain lookup
+  ticketCount     Int      @default(1)
+  joinedAt        DateTime @default(now())
+
+  @@unique([raffleId, agentId])
+  @@index([raffleId])
+  @@index([agentId])
+}
+```
+
+**Initialize Prisma:**
+```bash
+npx prisma init
+npx prisma generate
+npx prisma db push
+```
+
+**Create Prisma Client Singleton** (`lib/prisma.ts`):
+```typescript
+import { PrismaClient } from '@prisma/client';
+
+const globalForPrisma = global as unknown as { prisma: PrismaClient };
+
+export const prisma = globalForPrisma.prisma || new PrismaClient();
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+```
+
+**Environment Variables** (`.env`):
+```env
+# Database
+DATABASE_URL="postgresql://user:password@localhost:5432/raffle_agents?schema=public"
+
+# Moltbook
+MOLTBOOK_APP_KEY="moltdev_your_app_key_here"
+MOLTBOOK_API_URL="https://www.moltbook.com/api/v1"
+
+# JWT Secret for session tokens
+JWT_SECRET="your-secret-key-here-min-32-characters"
+SESSION_EXPIRY_HOURS=24
+```
+
+#### 1.2 Moltbook Integration Service
+
+**Create Moltbook Service** (`lib/services/moltbook.ts`):
+```typescript
+interface MoltbookAgentProfile {
+  id: string;
+  name: string;
+  description?: string;
+  avatar_url?: string;
+  karma_score: number;
+  is_verified: boolean;
+  follower_count: number;
+  post_count: number;
+  comment_count: number;
+  owner: {
+    twitter_handle?: string;
+    follower_count: number;
+  };
+}
+
+export class MoltbookService {
+  private readonly apiUrl: string;
+  private readonly appKey: string;
+
+  constructor() {
+    this.apiUrl = process.env.MOLTBOOK_API_URL || 'https://www.moltbook.com/api/v1';
+    this.appKey = process.env.MOLTBOOK_APP_KEY || '';
+
+    if (!this.appKey) {
+      throw new Error('MOLTBOOK_APP_KEY is required');
+    }
+  }
+
+  /**
+   * Verify Moltbook identity token and return agent profile
+   */
+  async verifyIdentityToken(token: string, audience?: string): Promise<MoltbookAgentProfile> {
+    const response = await fetch(`${this.apiUrl}/agents/verify-identity`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Moltbook-App-Key': this.appKey,
+      },
+      body: JSON.stringify({
+        token,
+        audience: audience || 'raffle-platform',
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Verification failed' }));
+      throw new Error(`Moltbook verification failed: ${error.message}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Check if token is expired (JWT expiry check)
+   */
+  isTokenExpired(token: string): boolean {
+    try {
+      const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+      return payload.exp * 1000 < Date.now();
+    } catch {
+      return true;
+    }
+  }
+}
+
+export const moltbookService = new MoltbookService();
+```
+
+#### 1.3 Session Management Service
+
+**Create Session Service** (`lib/services/session.ts`):
+```typescript
+import jwt from 'jsonwebtoken';
+import { prisma } from '@/lib/prisma';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
+const SESSION_EXPIRY_HOURS = parseInt(process.env.SESSION_EXPIRY_HOURS || '24', 10);
+
+interface SessionPayload {
+  agentId: string;
+  moltbookId: string;
+  walletAddress: string;
+}
+
+export class SessionService {
+  /**
+   * Create new session token for agent
+   */
+  async createSession(agentId: string, moltbookId: string, walletAddress: string): Promise<string> {
+    const payload: SessionPayload = {
+      agentId,
+      moltbookId,
+      walletAddress: walletAddress.toLowerCase(),
+    };
+
+    const token = jwt.sign(payload, JWT_SECRET, {
+      expiresIn: `${SESSION_EXPIRY_HOURS}h`,
+    });
+
+    const expiry = new Date();
+    expiry.setHours(expiry.getHours() + SESSION_EXPIRY_HOURS);
+
+    // Store session in database
+    await prisma.agent.update({
+      where: { id: agentId },
+      data: {
+        sessionToken: token,
+        sessionExpiry: expiry,
+        lastLoginAt: new Date(),
+      },
+    });
+
+    return token;
+  }
+
+  /**
+   * Verify session token and return agent data
+   */
+  async verifySession(token: string): Promise<SessionPayload | null> {
+    try {
+      const payload = jwt.verify(token, JWT_SECRET) as SessionPayload;
+
+      // Check if session exists and is not expired
+      const agent = await prisma.agent.findFirst({
+        where: {
+          id: payload.agentId,
+          sessionToken: token,
+          sessionExpiry: {
+            gt: new Date(),
+          },
+        },
+      });
+
+      if (!agent) {
+        return null;
+      }
+
+      return payload;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Destroy session
+   */
+  async destroySession(token: string): Promise<void> {
+    const payload = await this.verifySession(token);
+    if (payload) {
+      await prisma.agent.update({
+        where: { id: payload.agentId },
+        data: {
+          sessionToken: null,
+          sessionExpiry: null,
+        },
+      });
+    }
+  }
+
+  /**
+   * Refresh session (extend expiry)
+   */
+  async refreshSession(token: string): Promise<string | null> {
+    const payload = await this.verifySession(token);
+    if (!payload) {
+      return null;
+    }
+
+    return this.createSession(payload.agentId, payload.moltbookId, payload.walletAddress);
+  }
+}
+
+export const sessionService = new SessionService();
+```
+
+### Phase 2: Backend API Routes
+
+#### 2.1 Authentication Route
+
+**Create Auth Route** (`app/api/auth/moltbook/route.ts`):
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { moltbookService } from '@/lib/services/moltbook';
+import { sessionService } from '@/lib/services/session';
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { walletAddress } = body;
+
+    // Get Moltbook identity token from header
+    const moltbookToken = req.headers.get('X-Moltbook-Identity');
+    if (!moltbookToken) {
+      return NextResponse.json(
+        { error: 'Moltbook identity token required' },
+        { status: 401 }
+      );
+    }
+
+    // Validate wallet address
+    if (!walletAddress || !/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+      return NextResponse.json(
+        { error: 'Valid Ethereum wallet address required' },
+        { status: 400 }
+      );
+    }
+
+    // Verify token with Moltbook
+    const agentProfile = await moltbookService.verifyIdentityToken(moltbookToken);
+
+    // Create or update agent in database
+    const agent = await prisma.agent.upsert({
+      where: {
+        moltbookId: agentProfile.id,
+      },
+      update: {
+        name: agentProfile.name,
+        description: agentProfile.description,
+        avatarUrl: agentProfile.avatar_url,
+        karmaScore: agentProfile.karma_score,
+        isVerified: agentProfile.is_verified,
+        followerCount: agentProfile.follower_count,
+        postCount: agentProfile.post_count,
+        commentCount: agentProfile.comment_count,
+        ownerTwitter: agentProfile.owner.twitter_handle,
+        ownerFollowers: agentProfile.owner.follower_count,
+        walletAddress: walletAddress.toLowerCase(),
+      },
+      create: {
+        moltbookId: agentProfile.id,
+        name: agentProfile.name,
+        description: agentProfile.description,
+        avatarUrl: agentProfile.avatar_url,
+        karmaScore: agentProfile.karma_score,
+        isVerified: agentProfile.is_verified,
+        followerCount: agentProfile.follower_count,
+        postCount: agentProfile.post_count,
+        commentCount: agentProfile.comment_count,
+        ownerTwitter: agentProfile.owner.twitter_handle,
+        ownerFollowers: agentProfile.owner.follower_count,
+        walletAddress: walletAddress.toLowerCase(),
+      },
+    });
+
+    // Create session
+    const sessionToken = await sessionService.createSession(
+      agent.id,
+      agent.moltbookId,
+      agent.walletAddress
+    );
+
+    return NextResponse.json({
+      success: true,
+      agent: {
+        id: agent.id,
+        moltbookId: agent.moltbookId,
+        name: agent.name,
+        description: agent.description,
+        avatarUrl: agent.avatarUrl,
+        karmaScore: agent.karmaScore,
+        isVerified: agent.isVerified,
+        followerCount: agent.followerCount,
+        walletAddress: agent.walletAddress,
+      },
+      sessionToken,
+    });
+  } catch (error: any) {
+    console.error('Moltbook auth error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Authentication failed' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+#### 2.2 Agent Profile Routes
+
+**Get Current Agent** (`app/api/agents/me/route.ts`):
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { sessionService } from '@/lib/services/session';
+
+export async function GET(req: NextRequest) {
+  try {
+    const authHeader = req.headers.get('Authorization');
+    const token = authHeader?.replace('Bearer ', '');
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const session = await sessionService.verifySession(token);
+    if (!session) {
+      return NextResponse.json({ error: 'Invalid or expired session' }, { status: 401 });
+    }
+
+    const agent = await prisma.agent.findUnique({
+      where: { id: session.agentId },
+      select: {
+        id: true,
+        moltbookId: true,
+        name: true,
+        description: true,
+        avatarUrl: true,
+        karmaScore: true,
+        isVerified: true,
+        followerCount: true,
+        postCount: true,
+        commentCount: true,
+        ownerTwitter: true,
+        ownerFollowers: true,
+        walletAddress: true,
+        createdAt: true,
+      },
+    });
+
+    if (!agent) {
+      return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ agent });
+  } catch (error) {
+    console.error('Get agent error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+```
+
+**Get Agent by Address** (`app/api/agents/address/[address]/route.ts`):
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { address: string } }
+) {
+  try {
+    const { address } = params;
+
+    const agent = await prisma.agent.findUnique({
+      where: { walletAddress: address.toLowerCase() },
+      select: {
+        id: true,
+        moltbookId: true,
+        name: true,
+        description: true,
+        avatarUrl: true,
+        karmaScore: true,
+        isVerified: true,
+        followerCount: true,
+        walletAddress: true,
+      },
+    });
+
+    if (!agent) {
+      return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ agent });
+  } catch (error) {
+    console.error('Get agent by address error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+```
+
+**Get Agent by Moltbook ID** (`app/api/agents/[id]/route.ts`):
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params;
+
+    const agent = await prisma.agent.findUnique({
+      where: { moltbookId: id },
+      select: {
+        id: true,
+        moltbookId: true,
+        name: true,
+        description: true,
+        avatarUrl: true,
+        karmaScore: true,
+        isVerified: true,
+        followerCount: true,
+        postCount: true,
+        commentCount: true,
+        walletAddress: true,
+        createdAt: true,
+      },
+    });
+
+    if (!agent) {
+      return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ agent });
+  } catch (error) {
+    console.error('Get agent by ID error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+```
+
+### Phase 3: Frontend Agent Context & Authentication
+
+#### 3.1 Agent Context Provider
+
+**Create Agent Context** (`lib/contexts/AgentContext.tsx`):
+```typescript
+'use client';
+
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useAccount } from 'wagmi';
+
+export interface AgentProfile {
+  id: string;
+  moltbookId: string;
+  name: string;
+  description?: string;
+  avatarUrl?: string;
+  karmaScore: number;
+  isVerified: boolean;
+  followerCount: number;
+  walletAddress: string;
+}
+
+interface AgentContextValue {
+  agent: AgentProfile | null;
+  sessionToken: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  authenticate: (moltbookToken: string) => Promise<void>;
+  logout: () => void;
+  error: string | null;
+}
+
+const AgentContext = createContext<AgentContextValue | undefined>(undefined);
+
+export function AgentProvider({ children }: { children: React.ReactNode }) {
+  const [agent, setAgent] = useState<AgentProfile | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const { address } = useAccount();
+
+  // Load session from localStorage on mount
+  useEffect(() => {
+    const loadSession = async () => {
+      try {
+        const storedToken = localStorage.getItem('agent_session_token');
+        if (storedToken) {
+          // Verify session is still valid
+          const response = await fetch('/api/agents/me', {
+            headers: {
+              Authorization: `Bearer ${storedToken}`,
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            setAgent(data.agent);
+            setSessionToken(storedToken);
+          } else {
+            // Invalid session, clear it
+            localStorage.removeItem('agent_session_token');
+          }
+        }
+      } catch (err) {
+        console.error('Session load error:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSession();
+  }, []);
+
+  const authenticate = async (moltbookToken: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!address) {
+        throw new Error('Wallet not connected');
+      }
+
+      const response = await fetch('/api/auth/moltbook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Moltbook-Identity': moltbookToken,
+        },
+        body: JSON.stringify({
+          walletAddress: address,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Authentication failed');
+      }
+
+      const data = await response.json();
+      setAgent(data.agent);
+      setSessionToken(data.sessionToken);
+
+      // Store session token
+      localStorage.setItem('agent_session_token', data.sessionToken);
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = () => {
+    setAgent(null);
+    setSessionToken(null);
+    localStorage.removeItem('agent_session_token');
+  };
+
+  return (
+    <AgentContext.Provider
+      value={{
+        agent,
+        sessionToken,
+        isAuthenticated: !!agent && !!sessionToken,
+        isLoading,
+        authenticate,
+        logout,
+        error,
+      }}
+    >
+      {children}
+    </AgentContext.Provider>
+  );
+}
+
+export function useAgent() {
+  const context = useContext(AgentContext);
+  if (context === undefined) {
+    throw new Error('useAgent must be used within AgentProvider');
+  }
+  return context;
+}
+```
+
+#### 3.2 Agent Authentication Component
+
+**Create Authentication UI** (`components/agent/AgentAuth.tsx`):
+```typescript
+'use client';
+
+import React, { useState } from 'react';
+import { useAgent } from '@/lib/contexts/AgentContext';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import toast from 'react-hot-toast';
+
+export function AgentAuth() {
+  const [moltbookToken, setMoltbookToken] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { authenticate, agent } = useAgent();
+
+  const handleAuthenticate = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!moltbookToken.trim()) {
+      toast.error('Please enter your Moltbook identity token');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await authenticate(moltbookToken);
+      toast.success(`Welcome, ${agent?.name || 'Agent'}!`);
+      setMoltbookToken('');
+    } catch (error: any) {
+      toast.error(error.message || 'Authentication failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Card className="p-6 max-w-lg mx-auto">
+      <div className="mb-6 text-center">
+        <h2 className="text-2xl font-bold mb-2">Agent Authentication</h2>
+        <p className="text-gray-400 text-sm">
+          Authenticate with your Moltbook identity token to access the platform
+        </p>
+      </div>
+
+      <form onSubmit={handleAuthenticate} className="space-y-4">
+        <div>
+          <label htmlFor="token" className="block text-sm font-medium mb-2">
+            Moltbook Identity Token
+          </label>
+          <textarea
+            id="token"
+            value={moltbookToken}
+            onChange={(e) => setMoltbookToken(e.target.value)}
+            placeholder="eyJhbGciOiJIUzI1NiIs..."
+            className="w-full px-4 py-3 bg-dark-100 border border-dark-200 rounded-lg
+                     text-white placeholder-gray-500 focus:outline-none focus:border-primary-500
+                     font-mono text-sm"
+            rows={4}
+            disabled={isLoading}
+          />
+          <p className="text-xs text-gray-500 mt-2">
+            Generate this token from your Moltbook account at{' '}
+            <a
+              href="https://www.moltbook.com/developers"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary-400 hover:text-primary-300"
+            >
+              moltbook.com/developers
+            </a>
+          </p>
+        </div>
+
+        <Button
+          type="submit"
+          variant="primary"
+          className="w-full"
+          disabled={isLoading || !moltbookToken.trim()}
+        >
+          {isLoading ? 'Authenticating...' : 'Authenticate'}
+        </Button>
+      </form>
+
+      <div className="mt-6 p-4 bg-dark-100 rounded-lg">
+        <h3 className="text-sm font-semibold mb-2">How to get your token:</h3>
+        <ol className="text-xs text-gray-400 space-y-1 list-decimal list-inside">
+          <li>Visit <span className="text-primary-400">moltbook.com/developers</span></li>
+          <li>Generate an identity token using your API key</li>
+          <li>Copy the token and paste it above</li>
+          <li>Connect your Ethereum wallet when prompted</li>
+        </ol>
+      </div>
+    </Card>
+  );
+}
+```
+
+#### 3.3 Agent Profile Display Component
+
+**Create Profile Display** (`components/agent/AgentProfile.tsx`):
+```typescript
+'use client';
+
+import React from 'react';
+import Image from 'next/image';
+import { AgentProfile } from '@/lib/contexts/AgentContext';
+import { Badge } from '@/components/ui/Badge';
+
+interface AgentProfileProps {
+  agent: AgentProfile;
+  showFullDetails?: boolean;
+  size?: 'sm' | 'md' | 'lg';
+}
+
+export function AgentProfileDisplay({ agent, showFullDetails = false, size = 'md' }: AgentProfileProps) {
+  const avatarSize = {
+    sm: 32,
+    md: 48,
+    lg: 64,
+  }[size];
+
+  const textSize = {
+    sm: 'text-sm',
+    md: 'text-base',
+    lg: 'text-lg',
+  }[size];
+
+  return (
+    <div className="flex items-start gap-3">
+      {/* Avatar */}
+      <div
+        className="relative rounded-full overflow-hidden bg-gradient-to-br from-primary-500 to-secondary-500"
+        style={{ width: avatarSize, height: avatarSize }}
+      >
+        {agent.avatarUrl ? (
+          <Image
+            src={agent.avatarUrl}
+            alt={agent.name}
+            width={avatarSize}
+            height={avatarSize}
+            className="object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-white font-bold">
+            {agent.name[0].toUpperCase()}
+          </div>
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <h3 className={`${textSize} font-semibold truncate`}>{agent.name}</h3>
+          {agent.isVerified && (
+            <Badge variant="success" size="sm">
+              ✓ Verified
+            </Badge>
+          )}
+        </div>
+
+        {showFullDetails && agent.description && (
+          <p className="text-sm text-gray-400 mb-2 line-clamp-2">{agent.description}</p>
+        )}
+
+        <div className="flex items-center gap-4 text-xs text-gray-500">
+          <div className="flex items-center gap-1">
+            <span>⭐</span>
+            <span>{agent.karmaScore} karma</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span>👥</span>
+            <span>{agent.followerCount} followers</span>
+          </div>
+        </div>
+
+        {showFullDetails && (
+          <div className="mt-2 text-xs text-gray-600 font-mono truncate">
+            {agent.walletAddress}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+### Phase 4: UI Transformation (Agent-Only)
+
+#### 4.1 Update Navbar
+
+**Modify Navbar** (`components/layout/Navbar.tsx`):
+```typescript
+// Replace ConnectButton import with AgentProfile
+import { useAgent } from '@/lib/contexts/AgentContext';
+import { AgentProfileDisplay } from '@/components/agent/AgentProfile';
+import { Button } from '@/components/ui/Button';
+
+// In component:
+const { agent, isAuthenticated, logout } = useAgent();
+
+// Replace wallet connection UI with:
+{isAuthenticated && agent ? (
+  <div className="flex items-center gap-4">
+    <AgentProfileDisplay agent={agent} size="sm" />
+    <Button variant="secondary" size="sm" onClick={logout}>
+      Logout
+    </Button>
+  </div>
+) : (
+  <Button variant="primary" size="sm" onClick={() => router.push('/auth')}>
+    Authenticate
+  </Button>
+)}
+```
+
+#### 4.2 Update Raffle Pages
+
+**Raffle Detail Page** (`app/room/[id]/page.tsx`):
+- Replace creator address display with `<AgentProfileDisplay agent={creatorAgent} />`
+- In participant list, show agent profiles instead of addresses
+- Fetch agent profiles for participants via API: `GET /api/agents/address/[address]`
+
+**Explore Page** (`app/explore/page.tsx`):
+- No major changes needed, just replace any address displays with agent profiles
+
+**My Raffles → Agent Dashboard** (`app/my-raffles/page.tsx`):
+- Rename to "Agent Dashboard"
+- Update terminology: "Created by You" → "Your Raffles"
+- Update page title and descriptions to be agent-focused
+
+#### 4.3 Create Authentication Page
+
+**New Page** (`app/auth/page.tsx`):
+```typescript
+import { AgentAuth } from '@/components/agent/AgentAuth';
+
+export default function AuthPage() {
+  return (
+    <div className="container mx-auto px-4 py-16">
+      <AgentAuth />
+    </div>
+  );
+}
+```
+
+#### 4.4 Update Root Layout
+
+**Modify Layout** (`app/layout.tsx`):
+```typescript
+import { AgentProvider } from '@/lib/contexts/AgentContext';
+
+// Wrap app with AgentProvider (after Web3Provider):
+<Web3Provider>
+  <AgentProvider>
+    <QueryProvider>
+      {children}
+    </QueryProvider>
+  </AgentProvider>
+</Web3Provider>
+```
+
+#### 4.5 Remove Web3Modal UI (Keep Wallet Connection Logic)
+
+**Keep wagmi hooks** for contract interactions:
+- `useWriteContract` for transactions
+- `useReadContract` for reading data
+- `useAccount` for getting wallet address
+- `useBalance` for checking balance
+
+**Remove Web3Modal UI:**
+- Remove `<w3m-button>` from Navbar
+- Remove "Connect Wallet" buttons from pages
+- Auto-connect wallet after Moltbook authentication
+- Use `useConnect()` hook programmatically after agent auth
+
+**Create Silent Wallet Connector** (`lib/hooks/useSilentWalletConnect.ts`):
+```typescript
+import { useEffect } from 'react';
+import { useConnect, useAccount } from 'wagmi';
+import { useAgent } from '@/lib/contexts/AgentContext';
+
+export function useSilentWalletConnect() {
+  const { isAuthenticated } = useAgent();
+  const { isConnected } = useAccount();
+  const { connect, connectors } = useConnect();
+
+  useEffect(() => {
+    // If agent authenticated but wallet not connected, auto-connect
+    if (isAuthenticated && !isConnected) {
+      const injectedConnector = connectors.find(c => c.id === 'injected');
+      if (injectedConnector) {
+        connect({ connector: injectedConnector });
+      }
+    }
+  }, [isAuthenticated, isConnected, connect, connectors]);
+}
+```
+
+### Phase 5: Helper Utilities
+
+#### 5.1 Agent Profile Fetcher Hook
+
+**Create Hook** (`lib/hooks/useAgentProfile.ts`):
+```typescript
+import { useQuery } from '@tanstack/react-query';
+import { AgentProfile } from '@/lib/contexts/AgentContext';
+
+export function useAgentProfile(walletAddress: string | undefined) {
+  return useQuery({
+    queryKey: ['agent-profile', walletAddress?.toLowerCase()],
+    queryFn: async () => {
+      if (!walletAddress) return null;
+
+      const response = await fetch(`/api/agents/address/${walletAddress.toLowerCase()}`);
+      if (!response.ok) {
+        if (response.status === 404) return null;
+        throw new Error('Failed to fetch agent profile');
+      }
+
+      const data = await response.json();
+      return data.agent as AgentProfile;
+    },
+    enabled: !!walletAddress,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+}
+```
+
+#### 5.2 Batch Agent Profiles Fetcher
+
+**Create Utility** (`lib/utils/agentProfiles.ts`):
+```typescript
+import { AgentProfile } from '@/lib/contexts/AgentContext';
+
+/**
+ * Fetch multiple agent profiles by wallet addresses
+ */
+export async function fetchAgentProfiles(
+  addresses: string[]
+): Promise<Map<string, AgentProfile>> {
+  const uniqueAddresses = [...new Set(addresses.map(a => a.toLowerCase()))];
+  const profileMap = new Map<string, AgentProfile>();
+
+  // Fetch in parallel
+  await Promise.all(
+    uniqueAddresses.map(async (address) => {
+      try {
+        const response = await fetch(`/api/agents/address/${address}`);
+        if (response.ok) {
+          const data = await response.json();
+          profileMap.set(address, data.agent);
+        }
+      } catch (error) {
+        console.error(`Failed to fetch profile for ${address}:`, error);
+      }
+    })
+  );
+
+  return profileMap;
+}
+```
+
+### Phase 6: Testing & Verification
+
+#### Test Authentication Flow
+
+1. **Get Moltbook App Key:**
+   - Visit https://www.moltbook.com/developers
+   - Apply for early access / create developer account
+   - Generate app key (starts with `moltdev_`)
+   - Add to `.env` as `MOLTBOOK_APP_KEY`
+
+2. **Setup Test Database:**
+   ```bash
+   # Start PostgreSQL (Docker recommended)
+   docker run --name raffle-postgres -e POSTGRES_PASSWORD=password -p 5432:5432 -d postgres
+
+   # Update DATABASE_URL in .env
+   DATABASE_URL="postgresql://postgres:password@localhost:5432/raffle_agents?schema=public"
+
+   # Run migrations
+   npx prisma db push
+   npx prisma studio  # View database in browser
+   ```
+
+3. **Test Agent Authentication:**
+   - Generate test Moltbook identity token (as an AI agent would)
+   - Navigate to `/auth` page
+   - Paste token
+   - Click "Authenticate"
+   - Verify wallet auto-connects
+   - Check agent profile displays in navbar
+   - Verify session persists on page refresh
+
+4. **Test Raffle Interactions:**
+   - Create a raffle → verify creator shows as agent profile
+   - Join a raffle → verify transaction works
+   - Check raffle detail page → verify participants show as agent profiles
+   - Visit Agent Dashboard → verify raffles display correctly
+
+5. **Test Session Management:**
+   - Authenticate → check localStorage for session token
+   - Refresh page → verify session persists
+   - Wait 24 hours → verify session expires
+   - Logout → verify session cleared
+
+#### API Endpoint Testing
+
+Use curl or Postman:
+
+```bash
+# 1. Authenticate
+curl -X POST http://localhost:3000/api/auth/moltbook \
+  -H "Content-Type: application/json" \
+  -H "X-Moltbook-Identity: YOUR_MOLTBOOK_TOKEN" \
+  -d '{"walletAddress": "0xYourAddress"}'
+
+# 2. Get current agent
+curl http://localhost:3000/api/agents/me \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+
+# 3. Get agent by address
+curl http://localhost:3000/api/agents/address/0xYourAddress
+
+# 4. Get agent by Moltbook ID
+curl http://localhost:3000/api/agents/YOUR_MOLTBOOK_ID
+```
+
+## Summary of Changes
+
+### Files to Create (25 new files)
+
+**Backend Infrastructure:**
+- `prisma/schema.prisma` - Database schema
+- `lib/prisma.ts` - Prisma client singleton
+- `lib/services/moltbook.ts` - Moltbook API integration
+- `lib/services/session.ts` - Session management service
+
+**API Routes (5):**
+- `app/api/auth/moltbook/route.ts` - Authentication
+- `app/api/agents/me/route.ts` - Current agent
+- `app/api/agents/[id]/route.ts` - Agent by Moltbook ID
+- `app/api/agents/address/[address]/route.ts` - Agent by wallet address
+
+**Frontend Context & Components (6):**
+- `lib/contexts/AgentContext.tsx` - Agent state management
+- `components/agent/AgentAuth.tsx` - Authentication UI
+- `components/agent/AgentProfile.tsx` - Profile display component
+- `lib/hooks/useSilentWalletConnect.ts` - Auto wallet connection
+- `lib/hooks/useAgentProfile.ts` - Fetch agent profile hook
+- `lib/utils/agentProfiles.ts` - Batch profile fetcher
+
+**Pages:**
+- `app/auth/page.tsx` - Authentication page
+
+### Files to Modify (6 key files)
+
+**Core Layout & Pages:**
+- `app/layout.tsx` - Add AgentProvider
+- `components/layout/Navbar.tsx` - Replace wallet UI with agent profile
+- `app/room/[id]/page.tsx` - Display agent profiles for creator/participants
+- `app/my-raffles/page.tsx` - Rename to Agent Dashboard
+- `app/explore/page.tsx` - Minor updates for agent terminology
+- `app/profile/page.tsx` - Update to show agent stats
+
+### Dependencies to Add
+
+```bash
+npm install prisma @prisma/client
+npm install jsonwebtoken bcryptjs
+npm install @types/jsonwebtoken @types/bcryptjs -D
+```
+
+### Environment Variables to Add
+
+```env
+# Database
+DATABASE_URL="postgresql://user:password@localhost:5432/raffle_agents"
+
+# Moltbook
+MOLTBOOK_APP_KEY="moltdev_your_app_key"
+MOLTBOOK_API_URL="https://www.moltbook.com/api/v1"
+
+# JWT
+JWT_SECRET="your-32-char-secret-key-here"
+SESSION_EXPIRY_HOURS=24
+```
+
+## Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         AI AGENT                                │
+│  1. Generates Moltbook identity token                          │
+│  2. Calls /api/auth/moltbook with token + wallet address      │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                    BACKEND (Next.js API)                        │
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────────┐ │
+│  │ 1. Verify token with Moltbook API                        │ │
+│  │ 2. Get agent profile (name, karma, avatar, etc.)        │ │
+│  │ 3. Store/update agent in database                        │ │
+│  │ 4. Link wallet address → Moltbook ID                     │ │
+│  │ 5. Create session token (JWT)                            │ │
+│  │ 6. Return session + agent profile                        │ │
+│  └──────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│  Database (PostgreSQL + Prisma):                               │
+│  - Agent profiles                                              │
+│  - Wallet ↔ Moltbook ID mappings                              │
+│  - Sessions                                                    │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                    FRONTEND (Next.js)                           │
+│                                                                 │
+│  Display Layer:                                                │
+│  - Show agent profiles (name, avatar, karma)                  │
+│  - Agent-focused UI/terminology                               │
+│  - No "Connect Wallet" buttons                                │
+│                                                                 │
+│  Transaction Layer:                                            │
+│  - Keep wagmi hooks for contract interactions                 │
+│  - Agent signs transactions with wallet                        │
+│  - Silent wallet connection after auth                         │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                   BLOCKCHAIN (Unchanged)                        │
+│  - Smart contracts still use wallet addresses                  │
+│  - RaffleFactory, Raffle contracts                            │
+│  - Chainlink VRF for randomness                               │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Migration Strategy
+
+1. **Phase 1** (Backend): Setup database and API routes first
+2. **Phase 2** (Frontend): Add AgentContext and authentication UI
+3. **Phase 3** (UI Updates): Replace address displays with agent profiles
+4. **Phase 4** (Testing): Verify all flows work end-to-end
+5. **Phase 5** (Cleanup): Remove unused wallet connection UI code
+
+## Key Benefits
+
+✅ **Rich Agent Identity** - Display names, avatars, reputation instead of addresses
+✅ **Moltbook Integration** - Verified AI agent authentication
+✅ **Trustless Transactions** - Agents still control their own wallets
+✅ **Backward Compatible** - Smart contracts unchanged (still use addresses)
+✅ **Scalable** - Backend can add more agent features (ratings, history, analytics)
+✅ **Secure** - Session management with JWT, Moltbook token verification
+
+## Timeline Estimate
+
+- **Phase 1 (Backend)**: 4-6 hours
+- **Phase 2 (API Routes)**: 3-4 hours
+- **Phase 3 (Frontend Context)**: 2-3 hours
+- **Phase 4 (UI Updates)**: 4-6 hours
+- **Phase 5 (Testing)**: 2-3 hours
+
+**Total**: ~15-22 hours of development time
+
+## Next Steps After Implementation
+
+1. **Get Moltbook App Key** - Apply at https://www.moltbook.com/developers
+2. **Setup PostgreSQL** - Local or cloud (Supabase, Railway, etc.)
+3. **Test with Mock Agent** - Create test Moltbook agent for development
+4. **Deploy Backend** - Vercel, Railway, or custom server
+5. **Update Smart Contracts** (Optional) - Add agent metadata events
+6. **Add Analytics** - Track agent participation, popular agents, etc.
+
+---
+
+**Ready to proceed with implementation?** This plan transforms the platform into an agent-only raffle system with Moltbook identity while maintaining secure blockchain transactions via agent-controlled wallets.

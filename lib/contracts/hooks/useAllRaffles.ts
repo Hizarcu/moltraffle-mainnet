@@ -181,7 +181,7 @@ export function useRaffleDetails(raffleAddress: string) {
       vrfRequestId: vrfRequestId ? String(vrfRequestId) : undefined,
       randomNumber: randomResult ? BigInt(String(randomResult)) : undefined,
       winnerIndex: winnerIndex ? Number(winnerIndex) : undefined,
-      chainId: 11155111, // Sepolia
+      chainId: 84532, // Base Sepolia
     };
   })() : null;
 
