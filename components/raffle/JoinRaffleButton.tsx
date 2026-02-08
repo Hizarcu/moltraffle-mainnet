@@ -8,8 +8,6 @@ import { Card } from '@/components/ui/Card';
 import { useJoinRaffle } from '@/lib/contracts/hooks/useJoinRaffle';
 import { formatEthAmount } from '@/lib/utils/formatting';
 import { Raffle } from '@/lib/types/raffle';
-import { useAgent } from '@/lib/contexts/AgentContext';
-import Link from 'next/link';
 
 interface JoinRaffleButtonProps {
   raffle: Raffle;
@@ -22,7 +20,6 @@ export function JoinRaffleButton({ raffle, hasJoined, userTicketCount = 0, onSuc
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [ticketCount, setTicketCount] = useState(1);
   const { address, isConnected } = useAccount();
-  const { isAuthenticated } = useAgent();
 
   // Get user's balance
   const { data: balance } = useBalance({
@@ -52,8 +49,8 @@ export function JoinRaffleButton({ raffle, hasJoined, userTicketCount = 0, onSuc
 
   const { joinRaffle, isJoining, hash } = useJoinRaffle({
     raffleAddress: raffle.contractAddress,
-    entryFee: totalCost,  // Pass total cost for all tickets
-    ticketCount: ticketCount,  // Pass number of tickets
+    entryFee: totalCost,
+    ticketCount: ticketCount,
     onSuccess: () => {
       setShowConfirmModal(false);
       setTicketCount(1);
@@ -61,30 +58,12 @@ export function JoinRaffleButton({ raffle, hasJoined, userTicketCount = 0, onSuc
     },
   });
 
-  console.log('=== Join Raffle Debug ===');
-  console.log('Entry Fee (ETH):', raffle.entryFee);
-  console.log('Entry Fee (Wei):', entryFeeInWei.toString());
-  console.log('Balance (Wei):', balance?.value.toString());
-  console.log('Raffle Address:', raffle.contractAddress);
-  console.log('========================');
-
   const hasInsufficientBalance = balance && balance.value < entryFeeInWei;
   const isRaffleFull = raffle.maxParticipants && raffle.currentParticipants >= raffle.maxParticipants;
 
   const handleJoinClick = () => {
-    console.log('=== BUTTON CLICKED ===');
-
-    if (!isConnected) {
-      console.log('Not connected, returning');
-      return;
-    }
-
-    if (hasInsufficientBalance) {
-      console.log('Insufficient balance, returning');
-      return;
-    }
-
-    console.log('Opening modal...');
+    if (!isConnected) return;
+    if (hasInsufficientBalance) return;
     setShowConfirmModal(true);
   };
 
@@ -223,33 +202,7 @@ export function JoinRaffleButton({ raffle, hasJoined, userTicketCount = 0, onSuc
     );
   }
 
-  // Not authenticated as agent - show agents only message
-  if (!isAuthenticated) {
-    return (
-      <Card variant="gradient-border" className="p-6">
-        <div className="text-center">
-          <div className="text-4xl mb-3">🤖</div>
-          <h3 className="text-xl font-bold mb-4">Agents Only</h3>
-          <div className="mb-4">
-            <div className="text-text-muted text-sm mb-1">Entry Fee</div>
-            <div className="text-3xl font-bold text-gradient">
-              {entryFeeFormatted}
-            </div>
-          </div>
-          <p className="text-sm text-text-secondary mb-4">
-            Only AI agents with Moltbook identity can join raffles
-          </p>
-          <Link href="/auth">
-            <Button variant="primary" size="lg" className="w-full">
-              🤖 Agent Login
-            </Button>
-          </Link>
-        </div>
-      </Card>
-    );
-  }
-
-  // Not connected wallet state (but is authenticated agent)
+  // Not connected wallet state
   if (!isConnected) {
     return (
       <Card variant="gradient-border" className="p-6">

@@ -26,23 +26,12 @@ set +a
 echo -e "${YELLOW}⏹️  Stopping existing containers...${NC}"
 docker-compose down
 
-# Pull latest changes (if using git)
-# git pull origin main
-
 # Build and start containers
 echo -e "${YELLOW}🔨 Building Docker images...${NC}"
 docker-compose build --no-cache
 
 echo -e "${YELLOW}🚀 Starting containers...${NC}"
 docker-compose up -d
-
-# Wait for database to be ready
-echo -e "${YELLOW}⏳ Waiting for database...${NC}"
-sleep 10
-
-# Run database migrations
-echo -e "${YELLOW}📊 Running database migrations...${NC}"
-docker-compose exec -T raffle-app npx prisma migrate deploy
 
 # Check status
 echo -e "${YELLOW}📋 Container status:${NC}"

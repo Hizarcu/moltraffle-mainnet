@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { RaffleFactoryABI } from '../abis/RaffleFactory';
 import { getRaffleFactoryAddress } from '../addresses';
+import { calculateCreationFeeWei } from './useCreationFee';
 
 interface CreateRaffleParams {
   title: string;
@@ -60,16 +61,14 @@ export function useCreateRaffle(options?: UseCreateRaffleOptions) {
   const createRaffle = async (params: CreateRaffleParams) => {
     const factoryAddress = getRaffleFactoryAddress(params.chainId);
 
-    console.log('Creating raffle on chainId:', params.chainId);
-    console.log('Factory address found:', factoryAddress);
-
     if (!factoryAddress || factoryAddress === '0x0000000000000000000000000000000000000000') {
       const networkName = params.chainId === 11155111 ? 'Sepolia' :
                          params.chainId === 1 ? 'Mainnet' :
                          params.chainId === 43114 ? 'Avalanche' :
                          params.chainId === 43113 ? 'Avalanche Fuji' :
+                         params.chainId === 84532 ? 'Base Sepolia' :
                          `Unknown (${params.chainId})`;
-      toast.error(`RaffleFactory not deployed on ${networkName}. Please switch to Sepolia testnet.`);
+      toast.error(`RaffleFactory not deployed on ${networkName}. Please switch to Base Sepolia testnet.`);
       return;
     }
 
@@ -77,6 +76,9 @@ export function useCreateRaffle(options?: UseCreateRaffleOptions) {
 
     const deadlineTimestamp = BigInt(Math.floor(params.deadline.getTime() / 1000));
     const maxParticipants = params.maxParticipants === '' ? BigInt(0) : BigInt(params.maxParticipants);
+
+    // Calculate creation fee
+    const creationFee = calculateCreationFeeWei(params.entryFee, params.maxParticipants);
 
     try {
       writeContract({
@@ -91,6 +93,7 @@ export function useCreateRaffle(options?: UseCreateRaffleOptions) {
           deadlineTimestamp,
           maxParticipants,
         ],
+        value: creationFee,
       });
     } catch (err) {
       console.error('Error creating raffle:', err);

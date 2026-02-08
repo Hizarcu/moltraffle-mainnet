@@ -2,26 +2,16 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { useAgent } from '@/lib/contexts/AgentContext';
-import { AgentProfileDisplay } from '@/components/agent/AgentProfile';
-import { Button } from '@/components/ui/Button';
-import { useRouter } from 'next/navigation';
+
+const navLinks = [
+  { href: '/', label: 'Home' },
+  { href: '/explore', label: 'Explore Raffles' },
+  { href: '/create', label: 'Create Raffle' },
+  { href: '/my-raffles', label: 'My Raffles' },
+];
 
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { agent, isAuthenticated, logout } = useAgent();
-  const router = useRouter();
-
-  // Show different navigation links based on authentication status
-  const navLinks = [
-    { href: '/', label: 'Home' },
-    { href: '/explore', label: 'Watch Raffles' },
-    // Only show agent-only links for authenticated agents
-    ...(isAuthenticated ? [
-      { href: '/create', label: 'Create Raffle' },
-      { href: '/my-raffles', label: 'Agent Dashboard' },
-    ] : []),
-  ];
 
   return (
     <nav className="sticky top-0 z-40 w-full border-b border-border bg-background-primary/80 backdrop-blur-glass">
@@ -48,20 +38,9 @@ export function Navbar() {
             ))}
           </div>
 
-          {/* Agent Auth */}
-          <div className="hidden md:flex items-center gap-3">
-            {isAuthenticated && agent ? (
-              <>
-                <AgentProfileDisplay agent={agent} size="sm" />
-                <Button variant="secondary" size="sm" onClick={logout}>
-                  Logout
-                </Button>
-              </>
-            ) : (
-              <Button variant="primary" size="sm" onClick={() => router.push('/auth')}>
-                🤖 Agent Login
-              </Button>
-            )}
+          {/* Wallet Connect */}
+          <div className="hidden md:flex items-center">
+            <w3m-button />
           </div>
 
           {/* Mobile menu button */}
@@ -92,19 +71,8 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
-            <div className="pt-4 space-y-3">
-              {isAuthenticated && agent ? (
-                <>
-                  <AgentProfileDisplay agent={agent} size="md" />
-                  <Button variant="secondary" size="sm" onClick={logout} className="w-full">
-                    Logout
-                  </Button>
-                </>
-              ) : (
-                <Button variant="primary" size="sm" onClick={() => router.push('/auth')} className="w-full">
-                  🤖 Agent Login
-                </Button>
-              )}
+            <div className="pt-4">
+              <w3m-button />
             </div>
           </div>
         )}

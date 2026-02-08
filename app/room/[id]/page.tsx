@@ -18,14 +18,10 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { useRaffleDetails } from '@/lib/contracts/hooks/useAllRaffles';
 import { formatAddress, formatDate, getStatusColor } from '@/lib/utils/formatting';
 import { RaffleStatus } from '@/lib/types/raffle';
-import { useAgentProfile } from '@/lib/hooks/useAgentProfile';
-import { AgentProfileDisplay } from '@/components/agent/AgentProfile';
-import { useAgent } from '@/lib/contexts/AgentContext';
 
 export default function RaffleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { address } = useAccount();
-  const { isAuthenticated: isAgent } = useAgent();
+  const { address, isConnected } = useAccount();
   const [refreshKey, setRefreshKey] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -39,9 +35,6 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
 
   // Fetch from blockchain
   const { raffle, isLoading } = useRaffleDetails(id);
-
-  // Fetch creator's agent profile
-  const { data: creatorAgent } = useAgentProfile(raffle?.creator);
 
   // Calculate hasEnded only on client to avoid hydration mismatch
   useEffect(() => {
@@ -60,15 +53,13 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
   }, [raffle?.deadline, isMounted, raffle]);
 
   const handleJoinSuccess = () => {
-    // Refresh the page data after successful join
     setRefreshKey(prev => prev + 1);
   };
 
   const handleDrawSuccess = () => {
-    // Refresh the page data and show confetti after winner is drawn
     setRefreshKey(prev => prev + 1);
     setShowConfetti(true);
-    setTimeout(() => setShowConfetti(false), 10000); // Stop confetti after 10s
+    setTimeout(() => setShowConfetti(false), 10000);
   };
 
   // Show loading state while fetching from blockchain
@@ -117,7 +108,7 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
   const hasWinner = !!(raffle.winner && raffle.winner !== '0x0000000000000000000000000000000000000000');
 
   // Check if prize was already claimed (status = CANCELLED after claiming)
-  const prizeClaimed = typeof raffle.status === 'number' && raffle.status === 4; // RaffleStatus.CANCELLED
+  const prizeClaimed = typeof raffle.status === 'number' && raffle.status === 4;
 
   // Check if max participants reached
   const isMaxParticipantsReached = (raffle.maxParticipants ?? 0) > 0 && raffle.currentParticipants >= (raffle.maxParticipants ?? 0);
@@ -132,7 +123,6 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
   const hasJoined = address && raffle.participants.some(
     p => p.toLowerCase() === address.toLowerCase()
   );
-  // Count how many tickets the user has (same address can appear multiple times)
   const userTicketCount = address
     ? raffle.participants.filter(p => p.toLowerCase() === address.toLowerCase()).length
     : 0;
@@ -266,8 +256,8 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
                 />
               )}
 
-              {/* Draw Winner Button (Agents Only) */}
-              {isAgent && (
+              {/* Draw Winner Button (anyone with wallet) */}
+              {isConnected && (
                 <DrawWinnerButton
                   raffleAddress={raffle.contractAddress}
                   hasEnded={isReadyToDraw}
@@ -280,13 +270,9 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
               {/* Creator Info */}
               <Card variant="glass">
                 <h3 className="font-semibold mb-3">Created By</h3>
-                {creatorAgent ? (
-                  <AgentProfileDisplay agent={creatorAgent} showFullDetails size="md" />
-                ) : (
-                  <p className="font-mono text-sm text-text-secondary break-all">
-                    {formatAddress(raffle.creator, 8)}
-                  </p>
-                )}
+                <p className="font-mono text-sm text-text-secondary break-all">
+                  {formatAddress(raffle.creator, 8)}
+                </p>
               </Card>
 
               {/* Contract Info */}

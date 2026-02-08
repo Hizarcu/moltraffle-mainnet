@@ -18,6 +18,12 @@ contract RaffleFactory is VRFConsumerBaseV2Plus {
     uint32 private constant CALLBACK_GAS_LIMIT = 300000;
     uint32 private constant NUM_WORDS = 1;
 
+    // Platform fee configuration
+    address public immutable platformOwner;
+    uint256 public constant CREATION_FEE_BPS = 100; // 1%
+    uint256 public constant MIN_FEE = 0.0004 ether;
+    uint256 public constant MAX_FEE = 0.05 ether;
+
     // All deployed raffles
     address[] public allRaffles;
 
@@ -42,6 +48,12 @@ contract RaffleFactory is VRFConsumerBaseV2Plus {
 
     event RandomnessRequested(address indexed raffle, uint256 indexed requestId);
     event RandomnessFulfilled(address indexed raffle, uint256 indexed requestId, uint256 randomWord);
+    event FeesWithdrawn(address indexed owner, uint256 amount);
+
+    // Errors
+    error InsufficientCreationFee();
+    error NotPlatformOwner();
+    error WithdrawFailed();
 
     /**
      * @notice Initialize factory with Chainlink VRF configuration
@@ -56,6 +68,7 @@ contract RaffleFactory is VRFConsumerBaseV2Plus {
     ) VRFConsumerBaseV2Plus(_vrfCoordinator) {
         keyHash = _keyHash;
         subscriptionId = _subscriptionId;
+        platformOwner = msg.sender;
     }
 
     /**
@@ -68,6 +81,22 @@ contract RaffleFactory is VRFConsumerBaseV2Plus {
      * @param _maxParticipants Maximum participants (0 = unlimited)
      * @return raffleAddress Address of the newly created raffle
      */
+    /**
+     * @notice Calculate the creation fee for a raffle
+     * @param _entryFee Entry fee per ticket in wei
+     * @param _maxParticipants Maximum total tickets (0 = unlimited)
+     * @return fee The creation fee in wei
+     */
+    function calculateCreationFee(uint256 _entryFee, uint256 _maxParticipants) public pure returns (uint256 fee) {
+        if (_maxParticipants == 0) {
+            return MAX_FEE;
+        }
+        fee = (_entryFee * _maxParticipants * CREATION_FEE_BPS) / 10000;
+        if (fee < MIN_FEE) fee = MIN_FEE;
+        if (fee > MAX_FEE) fee = MAX_FEE;
+        return fee;
+    }
+
     function createRaffle(
         string memory _title,
         string memory _description,
@@ -75,7 +104,11 @@ contract RaffleFactory is VRFConsumerBaseV2Plus {
         uint256 _entryFee,
         uint256 _deadline,
         uint256 _maxParticipants
-    ) external returns (address raffleAddress) {
+    ) external payable returns (address raffleAddress) {
+        // Check creation fee
+        uint256 requiredFee = calculateCreationFee(_entryFee, _maxParticipants);
+        if (msg.value < requiredFee) revert InsufficientCreationFee();
+
         // Create new raffle contract (pass factory address)
         Raffle newRaffle = new Raffle(
             _title,
@@ -102,6 +135,12 @@ contract RaffleFactory is VRFConsumerBaseV2Plus {
             _deadline,
             _maxParticipants
         );
+
+        // Refund excess fee
+        uint256 excess = msg.value - requiredFee;
+        if (excess > 0) {
+            payable(msg.sender).transfer(excess);
+        }
 
         return raffleAddress;
     }
@@ -167,5 +206,23 @@ contract RaffleFactory is VRFConsumerBaseV2Plus {
 
     function getCreatorRaffleCount(address _creator) external view returns (uint256) {
         return rafflesByCreator[_creator].length;
+    }
+
+    /**
+     * @notice Withdraw accumulated creation fees (platform owner only)
+     */
+    function withdrawFees() external {
+        if (msg.sender != platformOwner) revert NotPlatformOwner();
+        uint256 balance = address(this).balance;
+        (bool success, ) = platformOwner.call{value: balance}("");
+        if (!success) revert WithdrawFailed();
+        emit FeesWithdrawn(platformOwner, balance);
+    }
+
+    /**
+     * @notice Get accumulated fees in the factory contract
+     */
+    function getAccumulatedFees() external view returns (uint256) {
+        return address(this).balance;
     }
 }

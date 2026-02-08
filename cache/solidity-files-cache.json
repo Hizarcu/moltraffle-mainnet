@@ -111,8 +111,8 @@
       ]
     },
     "/home/yeekap/raffle-party-platform/contracts/RaffleFactory.sol": {
-      "lastModificationDate": 1768054856618,
-      "contentHash": "e4d8241e95fda23e95dba81e4ef5faab",
+      "lastModificationDate": 1770571010254,
+      "contentHash": "7e1495cdeb002fe03eeac0fb52c80b74",
       "sourceName": "contracts/RaffleFactory.sol",
       "solcConfig": {
         "version": "0.8.24",

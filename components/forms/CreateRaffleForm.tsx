@@ -9,6 +9,7 @@ import { StepIndicator } from './StepIndicator';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { useCreateRaffle } from '@/lib/contracts/hooks/useCreateRaffle';
+import { useCreationFee } from '@/lib/contracts/hooks/useCreationFee';
 import { createRaffleSchema, CreateRaffleFormData, defaultValues, generatePrizeDescription } from '@/lib/schemas/createRaffle';
 
 const steps = [
@@ -44,6 +45,9 @@ export function CreateRaffleForm() {
   });
 
   const formValues = watch();
+
+  // Calculate creation fee
+  const creationFee = useCreationFee(formValues.entryFee, formValues.maxParticipants);
 
   const nextStep = async () => {
     let fieldsToValidate: (keyof CreateRaffleFormData)[] = [];
@@ -193,6 +197,19 @@ export function CreateRaffleForm() {
                   )}
                 </div>
               )}
+
+              {/* Creation Fee Preview */}
+              {creationFee !== null && (
+                <div className="p-4 bg-gray-800/50 border border-gray-700 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-sm text-gray-400">Creation Fee</p>
+                      <p className="text-xs text-gray-500">1% of total payout, capped 0.0004–0.05 ETH</p>
+                    </div>
+                    <p className="font-bold text-lg">{creationFee} ETH</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -265,6 +282,16 @@ export function CreateRaffleForm() {
                     </p>
                   )}
                 </div>
+
+                {/* Creation Fee */}
+                {creationFee !== null && (
+                  <div className="p-4 bg-gray-800/50 border border-gray-700 rounded-lg">
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm text-gray-400">Creation Fee (paid on submit)</p>
+                      <p className="font-bold">{creationFee} ETH</p>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <p className="text-sm text-gray-400">Deadline</p>

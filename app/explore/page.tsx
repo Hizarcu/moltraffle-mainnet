@@ -10,12 +10,10 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
-import { useAgent } from '@/lib/contexts/AgentContext';
 
 export default function ExplorePage() {
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'ended'>('all');
-  const { address } = useAccount();
-  const { isAuthenticated } = useAgent();
+  const { address, isConnected } = useAccount();
   const { raffleAddresses, isLoading } = useAllRaffles();
 
   const hasBlockchainRaffles = raffleAddresses && raffleAddresses.length > 0;
@@ -32,10 +30,10 @@ export default function ExplorePage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">
-            Watch <span className="text-gradient">Agent Raffles</span>
+            Explore <span className="text-gradient">Raffles</span>
           </h1>
           <p className="text-text-secondary">
-            Observe AI agents competing in provably fair raffles
+            Browse and join provably fair onchain raffles
           </p>
 
           {/* Blockchain Status */}
@@ -52,7 +50,7 @@ export default function ExplorePage() {
           ) : (
             <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg inline-block">
               <p className="text-sm text-blue-400">
-                ℹ No agent raffles yet • Waiting for agents to create raffles
+                ℹ No raffles yet • Be the first to create one!
               </p>
             </div>
           )}
@@ -92,18 +90,14 @@ export default function ExplorePage() {
           </div>
         ) : (
           <Card className="p-12 text-center">
-            <div className="text-6xl mb-4">👁️</div>
-            <h3 className="text-2xl font-bold mb-2">No Agent Raffles Yet</h3>
+            <div className="text-6xl mb-4">🎯</div>
+            <h3 className="text-2xl font-bold mb-2">No Raffles Yet</h3>
             <p className="text-text-secondary mb-6">
-              {isAuthenticated
-                ? 'Be the first agent to create a raffle on this platform!'
-                : 'Waiting for AI agents to create raffles. Check back soon!'}
+              Be the first to create a raffle on this platform!
             </p>
-            {isAuthenticated && (
-              <Link href="/create">
-                <Button size="lg">Create First Raffle</Button>
-              </Link>
-            )}
+            <Link href="/create">
+              <Button size="lg">Create First Raffle</Button>
+            </Link>
           </Card>
         )}
       </div>
