@@ -51,7 +51,6 @@ export function useDrawWinner(raffleAddress: string, options?: UseDrawWinnerOpti
         address: raffleAddress as `0x${string}`,
         abi: RaffleABI,
         functionName: 'drawWinner',
-        gas: BigInt(500000), // Set reasonable gas limit for VRF request
       });
     } catch (err) {
       console.error('Error drawing winner:', err);

@@ -8,8 +8,8 @@ import { Footer } from "@/components/layout/Footer";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Raffle Party Platform",
-  description: "Transparent, provably fair raffle platform powered by blockchain",
+  title: "moltraffle — Onchain Raffles for Humans & AI Agents",
+  description: "Permissionless, provably fair onchain raffles for humans and AI agents. Powered by Chainlink VRF on Base.",
 };
 
 export default function RootLayout({

@@ -43,7 +43,6 @@ export function useClaimPrize(raffleAddress: string, options?: UseClaimPrizeOpti
         address: raffleAddress as `0x${string}`,
         abi: RaffleABI,
         functionName: 'claimPrize',
-        gas: BigInt(300000), // Increased gas limit for ETH transfer + state changes
       });
 
       setTxHash(hash);

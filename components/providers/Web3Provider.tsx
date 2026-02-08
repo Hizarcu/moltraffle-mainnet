@@ -3,8 +3,9 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createWeb3Modal } from '@web3modal/wagmi/react';
-import { config, projectId } from '@/lib/wagmi/config';
+import { createAppKit } from '@reown/appkit/react';
+import { baseSepolia } from '@reown/appkit/networks';
+import { wagmiAdapter, projectId, networks } from '@/lib/wagmi/config';
 
 // Setup queryClient for wagmi
 const queryClient = new QueryClient();
@@ -20,11 +21,15 @@ export function Web3Provider({ children }: { children: ReactNode }) {
 
     // Create modal only once on client side
     if (!modalCreated && projectId) {
-      createWeb3Modal({
-        wagmiConfig: config,
+      createAppKit({
+        adapters: [wagmiAdapter],
+        networks,
+        defaultNetwork: baseSepolia,
         projectId,
-        enableAnalytics: true,
-        enableOnramp: true,
+        features: {
+          analytics: true,
+          onramp: true,
+        },
         themeMode: 'dark',
         themeVariables: {
           '--w3m-accent': '#7B3FF2',
@@ -36,7 +41,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <WagmiProvider config={config}>
+    <WagmiProvider config={wagmiAdapter.wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         {children}
       </QueryClientProvider>

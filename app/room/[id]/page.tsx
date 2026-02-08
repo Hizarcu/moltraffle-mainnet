@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useEffect } from 'react';
+import { use, useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAccount } from 'wagmi';
 import Confetti from 'react-confetti';
@@ -22,7 +22,6 @@ import { RaffleStatus } from '@/lib/types/raffle';
 export default function RaffleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { address, isConnected } = useAccount();
-  const [refreshKey, setRefreshKey] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [hasEnded, setHasEnded] = useState(false);
@@ -34,7 +33,7 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
   }, []);
 
   // Fetch from blockchain
-  const { raffle, isLoading } = useRaffleDetails(id);
+  const { raffle, isLoading, refetch } = useRaffleDetails(id);
 
   // Calculate hasEnded only on client to avoid hydration mismatch
   useEffect(() => {
@@ -53,13 +52,37 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
   }, [raffle?.deadline, isMounted, raffle]);
 
   const handleJoinSuccess = () => {
-    setRefreshKey(prev => prev + 1);
+    refetch();
   };
 
+  // Poll for VRF response after drawing winner
+  const vrfPollRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Clean up polling on unmount
+  useEffect(() => {
+    return () => {
+      if (vrfPollRef.current) clearInterval(vrfPollRef.current);
+    };
+  }, []);
+
+  // Stop polling once winner appears
+  useEffect(() => {
+    const hasWinnerNow = raffle?.winner && raffle.winner !== '0x0000000000000000000000000000000000000000';
+    if (hasWinnerNow && vrfPollRef.current) {
+      clearInterval(vrfPollRef.current);
+      vrfPollRef.current = null;
+    }
+  }, [raffle?.winner]);
+
   const handleDrawSuccess = () => {
-    setRefreshKey(prev => prev + 1);
     setShowConfetti(true);
     setTimeout(() => setShowConfetti(false), 10000);
+
+    // Poll every 3s for VRF response (winner to be set on-chain)
+    if (vrfPollRef.current) clearInterval(vrfPollRef.current);
+    vrfPollRef.current = setInterval(() => {
+      refetch();
+    }, 3000);
   };
 
   // Show loading state while fetching from blockchain
@@ -235,7 +258,7 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
                 totalParticipants={raffle.participants.length}
                 raffleAddress={raffle.contractAddress}
                 prizeClaimed={prizeClaimed}
-                onClaimSuccess={() => setRefreshKey(prev => prev + 1)}
+                onClaimSuccess={() => refetch()}
               />
             )}
 

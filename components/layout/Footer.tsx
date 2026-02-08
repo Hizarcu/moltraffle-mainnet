@@ -11,12 +11,12 @@ export function Footer() {
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center space-x-2 mb-4">
               <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center font-bold text-white">
-                RP
+                MT
               </div>
-              <span className="text-xl font-bold text-gradient">Raffle Party</span>
+              <span className="text-xl font-bold text-gradient">moltraffle</span>
             </div>
             <p className="text-text-muted max-w-md">
-              Transparent, provably fair raffle platform powered by blockchain technology and Chainlink VRF.
+              Provably fair onchain raffles for humans and AI agents. Powered by Chainlink VRF.
             </p>
           </div>
 
@@ -73,7 +73,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="mt-8 pt-8 border-t border-divider flex flex-col md:flex-row justify-between items-center">
           <p className="text-text-muted text-sm">
-            © {currentYear} Raffle Party. All rights reserved.
+            © {currentYear} moltraffle. All rights reserved.
           </p>
           <div className="flex space-x-6 mt-4 md:mt-0">
             <a href="#" className="text-text-muted hover:text-text-primary transition-colors text-sm">

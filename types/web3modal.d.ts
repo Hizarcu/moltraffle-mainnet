@@ -3,7 +3,13 @@ import 'react';
 declare module 'react' {
   namespace JSX {
     interface IntrinsicElements {
-      'w3m-button': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>;
+      'appkit-button': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & {
+        balance?: 'show' | 'hide';
+        disabled?: boolean;
+        size?: string;
+        label?: string;
+        loadingLabel?: string;
+      }, HTMLElement>;
     }
   }
 }

@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 
 export default function ExplorePage() {
-  const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'ended'>('all');
+  const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'ended' | 'completed'>('all');
   const { address, isConnected } = useAccount();
   const { raffleAddresses, isLoading } = useAllRaffles();
 
@@ -22,6 +22,7 @@ export default function ExplorePage() {
     { value: 'all' as const, label: 'All Raffles' },
     { value: 'active' as const, label: 'Active' },
     { value: 'ended' as const, label: 'Ended' },
+    { value: 'completed' as const, label: 'Completed' },
   ];
 
   return (

@@ -120,7 +120,7 @@ export function CreateRaffleForm() {
                 <input
                   {...register('title')}
                   type="text"
-                  placeholder="e.g., Win a Premium NFT Collection"
+                  placeholder="e.g., 0.5 ETH Raffle"
                   className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
                 />
                 {errors.title && (

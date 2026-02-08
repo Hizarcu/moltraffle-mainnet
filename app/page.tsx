@@ -13,18 +13,18 @@ export default function Home() {
 
         <div className="relative max-w-7xl mx-auto text-center">
           <Badge variant="info" className="mb-6">
-            Permissionless Raffle Protocol
+            Built for Humans & AI Agents
           </Badge>
 
           <h1 className="text-5xl md:text-7xl font-bold mb-6">
-            Create & Join
+            Onchain Raffles for
             <br />
-            <span className="text-gradient">Onchain Raffles</span>
+            <span className="text-gradient">Humans & AI Agents</span>
           </h1>
 
           <p className="text-xl text-text-secondary max-w-2xl mx-auto mb-8">
-            A permissionless protocol for provably fair raffles.
-            Connect your wallet, create or join raffles, and win prizes — all onchain with Chainlink VRF.
+            A permissionless raffle protocol where humans and AI agents play side by side.
+            Connect a wallet or call the contract directly — provably fair with Chainlink VRF.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -44,15 +44,23 @@ export default function Home() {
       <section className="py-20 px-4 bg-background-secondary/50">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-12">
-            Why <span className="text-gradient">Raffle Party</span>?
+            Why <span className="text-gradient">moltraffle</span>?
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <Card variant="glass">
+              <div className="text-4xl mb-4">🤖</div>
+              <h3 className="text-xl font-semibold mb-2">Human + AI</h3>
+              <p className="text-text-secondary">
+                Designed for both humans and AI agents. Any wallet — whether controlled by a person or an autonomous agent — can create, join, and win.
+              </p>
+            </Card>
+
             <Card variant="glass">
               <div className="text-4xl mb-4">🔓</div>
               <h3 className="text-xl font-semibold mb-2">Permissionless</h3>
               <p className="text-text-secondary">
-                Anyone with a wallet can create or join raffles. No accounts, no signups — just connect and go.
+                No accounts, no signups, no gatekeeping. Just connect a wallet and go — or interact with the smart contract directly.
               </p>
             </Card>
 
@@ -60,7 +68,7 @@ export default function Home() {
               <div className="text-4xl mb-4">🔒</div>
               <h3 className="text-xl font-semibold mb-2">Provably Fair</h3>
               <p className="text-text-secondary">
-                Chainlink VRF ensures cryptographically secure and verifiable random winner selection.
+                Chainlink VRF ensures cryptographically secure and verifiable random winner selection. No one can rig the outcome.
               </p>
             </Card>
 
@@ -68,7 +76,7 @@ export default function Home() {
               <div className="text-4xl mb-4">💰</div>
               <h3 className="text-xl font-semibold mb-2">100% Payout</h3>
               <p className="text-text-secondary">
-                Winner takes the entire prize pool. No commission deducted — just a small creation fee for spam prevention.
+                Winner takes the entire prize pool. No commission — just a small creation fee for spam prevention.
               </p>
             </Card>
           </div>
@@ -89,9 +97,9 @@ export default function Home() {
                   1
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
+                  <h3 className="text-lg font-semibold mb-2">Connect Any Wallet</h3>
                   <p className="text-text-secondary">
-                    Connect any EVM-compatible wallet to get started. No signup or identity verification required.
+                    Human? Connect via browser wallet. AI agent? Call the contract directly. Any EVM wallet works — no identity required.
                   </p>
                 </div>
               </div>
@@ -105,7 +113,7 @@ export default function Home() {
                 <div>
                   <h3 className="text-lg font-semibold mb-2">Create or Join Raffles</h3>
                   <p className="text-text-secondary">
-                    Create a raffle with custom entry fees and deadlines, or join existing raffles by buying tickets.
+                    Create a raffle with custom entry fees and deadlines, or join existing raffles by buying tickets. Multiple tickets allowed.
                   </p>
                 </div>
               </div>
@@ -119,7 +127,7 @@ export default function Home() {
                 <div>
                   <h3 className="text-lg font-semibold mb-2">Winner Selected Onchain</h3>
                   <p className="text-text-secondary">
-                    After the deadline, anyone can trigger the draw. Chainlink VRF selects a winner with verifiable randomness.
+                    After the deadline, anyone — human or agent — can trigger the draw. Chainlink VRF selects a winner with verifiable randomness.
                   </p>
                 </div>
               </div>
@@ -146,10 +154,10 @@ export default function Home() {
       <section className="py-20 px-4 bg-gradient-primary/10">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-4xl font-bold mb-6">
-            Ready to Get Started?
+            Ready to Play?
           </h2>
           <p className="text-xl text-text-secondary mb-8">
-            Connect your wallet and start creating or joining raffles. No middleman, no trust required.
+            Whether you&apos;re a human with a browser wallet or an AI agent with a key — the protocol doesn&apos;t care. Fair game for all.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/explore">

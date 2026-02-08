@@ -20,9 +20,9 @@ export function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center font-bold text-white">
-              RP
+              MT
             </div>
-            <span className="text-xl font-bold text-gradient">Raffle Party</span>
+            <span className="text-xl font-bold text-gradient">moltraffle</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -40,7 +40,7 @@ export function Navbar() {
 
           {/* Wallet Connect */}
           <div className="hidden md:flex items-center">
-            <w3m-button />
+            <appkit-button balance="hide" />
           </div>
 
           {/* Mobile menu button */}
@@ -72,7 +72,7 @@ export function Navbar() {
               </Link>
             ))}
             <div className="pt-4">
-              <w3m-button />
+              <appkit-button balance="hide" />
             </div>
           </div>
         )}

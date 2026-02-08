@@ -1,5 +1,5 @@
 import { useReadContract, useChainId } from 'wagmi';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { getRaffleFactoryAddress } from '../addresses';
 import { RaffleFactoryABI } from '../abis/RaffleFactory';
 import { RaffleABI } from '../abis/Raffle';
@@ -57,7 +57,7 @@ export function useAllRaffles() {
  * Hook to fetch single raffle with all details
  */
 export function useRaffleDetails(raffleAddress: string) {
-  const { data: raffleInfo, isLoading: isLoadingInfo } = useReadContract({
+  const { data: raffleInfo, isLoading: isLoadingInfo, refetch: refetchInfo } = useReadContract({
     address: raffleAddress as `0x${string}`,
     abi: RaffleABI,
     functionName: 'getRaffleDetails',
@@ -67,39 +67,43 @@ export function useRaffleDetails(raffleAddress: string) {
     },
   });
 
-  const { data: participants } = useReadContract({
+  const { data: participants, refetch: refetchParticipants } = useReadContract({
     address: raffleAddress as `0x${string}`,
     abi: RaffleABI,
     functionName: 'getParticipants',
     query: {
       enabled: !!raffleAddress,
+      refetchInterval: 30000,
     },
   });
 
-  const { data: winner } = useReadContract({
+  const { data: winner, refetch: refetchWinner } = useReadContract({
     address: raffleAddress as `0x${string}`,
     abi: RaffleABI,
     functionName: 'winner',
     query: {
       enabled: !!raffleAddress,
+      refetchInterval: 30000,
     },
   });
 
-  const { data: vrfRequestId } = useReadContract({
+  const { data: vrfRequestId, refetch: refetchVrf } = useReadContract({
     address: raffleAddress as `0x${string}`,
     abi: RaffleABI,
     functionName: 'vrfRequestId',
     query: {
       enabled: !!raffleAddress,
+      refetchInterval: 30000,
     },
   });
 
-  const { data: randomResult } = useReadContract({
+  const { data: randomResult, refetch: refetchRandom } = useReadContract({
     address: raffleAddress as `0x${string}`,
     abi: RaffleABI,
     functionName: 'randomResult',
     query: {
       enabled: !!raffleAddress,
+      refetchInterval: 30000,
     },
   });
 
@@ -112,14 +116,25 @@ export function useRaffleDetails(raffleAddress: string) {
     },
   });
 
-  const { data: winnerIndex } = useReadContract({
+  const { data: winnerIndex, refetch: refetchWinnerIndex } = useReadContract({
     address: raffleAddress as `0x${string}`,
     abi: RaffleABI,
     functionName: 'winnerIndex',
     query: {
       enabled: !!raffleAddress,
+      refetchInterval: 30000,
     },
   });
+
+  // Refetch all mutable data at once
+  const refetch = useCallback(() => {
+    refetchInfo();
+    refetchParticipants();
+    refetchWinner();
+    refetchVrf();
+    refetchRandom();
+    refetchWinnerIndex();
+  }, [refetchInfo, refetchParticipants, refetchWinner, refetchVrf, refetchRandom, refetchWinnerIndex]);
 
   // Transform blockchain data to Raffle type
   // getRaffleDetails returns: (title, description, entryFee, deadline, maxParticipants, currentParticipants, status, creator, winner)
@@ -142,17 +157,6 @@ export function useRaffleDetails(raffleAddress: string) {
     } else {
       actualStatus = 0; // ACTIVE - deadline in future
     }
-
-    console.log('=== Raffle Data Debug ===');
-    console.log('Raffle Address:', raffleAddress);
-    console.log('Deadline (Unix seconds):', deadlineTimestamp);
-    console.log('Deadline (Date):', deadlineDate.toISOString());
-    console.log('Current Time:', new Date(currentTime).toISOString());
-    console.log('Time until deadline (ms):', deadlineDate.getTime() - currentTime);
-    console.log('Status from contract:', contractStatus);
-    console.log('Calculated status:', actualStatus, actualStatus === 0 ? '(ACTIVE)' : actualStatus === 1 ? '(ENDED)' : '(DRAWN)');
-    console.log('Has winner:', hasWinner);
-    console.log('========================');
 
     const entryFeeWei = (raffleInfo as any)[2] as bigint;
     const entryFeeEth = parseFloat(formatEther(entryFeeWei));
@@ -188,5 +192,6 @@ export function useRaffleDetails(raffleAddress: string) {
   return {
     raffle,
     isLoading: isLoadingInfo,
+    refetch,
   };
 }

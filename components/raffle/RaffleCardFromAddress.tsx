@@ -9,7 +9,7 @@ interface RaffleCardFromAddressProps {
   raffleAddress: string;
   userAddress?: string;
   showOnlyIfParticipating?: boolean;
-  filterStatus?: 'all' | 'active' | 'ended';
+  filterStatus?: 'all' | 'active' | 'ended' | 'completed';
 }
 
 export function RaffleCardFromAddress({ raffleAddress, userAddress, showOnlyIfParticipating = false, filterStatus = 'all' }: RaffleCardFromAddressProps) {
@@ -44,11 +44,15 @@ export function RaffleCardFromAddress({ raffleAddress, userAddress, showOnlyIfPa
     const status = raffle.status;
     const isActive = (typeof status === 'number' && status === 0) || status === 'active';
     const isEnded = (typeof status === 'number' && status === 1) || status === 'ended';
+    const isCompleted = (typeof status === 'number' && (status === 2 || status === 4)) || status === 'drawn' || status === 'cancelled';
 
     if (filterStatus === 'active' && !isActive) {
       return null;
     }
     if (filterStatus === 'ended' && !isEnded) {
+      return null;
+    }
+    if (filterStatus === 'completed' && !isCompleted) {
       return null;
     }
   }
