@@ -4,13 +4,14 @@ pragma solidity ^0.8.24;
 import "./Raffle.sol";
 import "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
  * @title RaffleFactory
  * @notice Factory contract to create and manage multiple raffles
  * @dev Deploys new Raffle contracts and handles Chainlink VRF requests for all raffles
  */
-contract RaffleFactory is VRFConsumerBaseV2Plus {
+contract RaffleFactory is VRFConsumerBaseV2Plus, Pausable {
     // Chainlink VRF Configuration
     bytes32 public immutable keyHash;
     uint256 public immutable subscriptionId;
@@ -54,6 +55,9 @@ contract RaffleFactory is VRFConsumerBaseV2Plus {
     error InsufficientCreationFee();
     error NotPlatformOwner();
     error WithdrawFailed();
+    error TransferFailed();
+    error OnlyRaffleContract();
+    error InvalidRequestId();
 
     /**
      * @notice Initialize factory with Chainlink VRF configuration
@@ -104,12 +108,12 @@ contract RaffleFactory is VRFConsumerBaseV2Plus {
         uint256 _entryFee,
         uint256 _deadline,
         uint256 _maxParticipants
-    ) external payable returns (address raffleAddress) {
+    ) external payable whenNotPaused returns (address raffleAddress) {
         // Check creation fee
         uint256 requiredFee = calculateCreationFee(_entryFee, _maxParticipants);
         if (msg.value < requiredFee) revert InsufficientCreationFee();
 
-        // Create new raffle contract (pass factory address)
+        // Create new raffle contract (pass creator address and factory address)
         Raffle newRaffle = new Raffle(
             _title,
             _description,
@@ -117,7 +121,8 @@ contract RaffleFactory is VRFConsumerBaseV2Plus {
             _entryFee,
             _deadline,
             _maxParticipants,
-            address(this) // Pass factory address instead of VRF coordinator
+            msg.sender, // Pass creator address (fixes tx.origin vulnerability)
+            address(this) // Pass factory address
         );
 
         raffleAddress = address(newRaffle);
@@ -139,7 +144,8 @@ contract RaffleFactory is VRFConsumerBaseV2Plus {
         // Refund excess fee
         uint256 excess = msg.value - requiredFee;
         if (excess > 0) {
-            payable(msg.sender).transfer(excess);
+            (bool success, ) = payable(msg.sender).call{value: excess}("");
+            if (!success) revert TransferFailed();
         }
 
         return raffleAddress;
@@ -150,7 +156,7 @@ contract RaffleFactory is VRFConsumerBaseV2Plus {
      * @return requestId VRF request ID
      */
     function requestRandomnessForRaffle() external returns (uint256 requestId) {
-        require(isRaffle[msg.sender], "Only raffle contracts can request");
+        if (!isRaffle[msg.sender]) revert OnlyRaffleContract();
 
         // Request randomness from Chainlink VRF
         requestId = s_vrfCoordinator.requestRandomWords(
@@ -181,7 +187,7 @@ contract RaffleFactory is VRFConsumerBaseV2Plus {
      */
     function fulfillRandomWords(uint256 _requestId, uint256[] calldata _randomWords) internal override {
         address raffleAddress = requestIdToRaffle[_requestId];
-        require(raffleAddress != address(0), "Invalid request ID");
+        if (raffleAddress == address(0)) revert InvalidRequestId();
 
         uint256 randomWord = _randomWords[0];
 
@@ -206,6 +212,23 @@ contract RaffleFactory is VRFConsumerBaseV2Plus {
 
     function getCreatorRaffleCount(address _creator) external view returns (uint256) {
         return rafflesByCreator[_creator].length;
+    }
+
+    /**
+     * @notice Pause raffle creation (emergency mechanism, platform owner only)
+     * @dev Existing raffles continue to function normally
+     */
+    function pause() external {
+        if (msg.sender != platformOwner) revert NotPlatformOwner();
+        _pause();
+    }
+
+    /**
+     * @notice Unpause raffle creation (platform owner only)
+     */
+    function unpause() external {
+        if (msg.sender != platformOwner) revert NotPlatformOwner();
+        _unpause();
     }
 
     /**

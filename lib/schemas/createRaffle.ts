@@ -18,18 +18,46 @@ export const createRaffleSchema = z.object({
     .refine(
       (val) => !isNaN(Number(val)) && Number(val) > 0,
       'Entry fee must be greater than 0'
+    )
+    .refine(
+      (val) => Number(val) <= 100,
+      '⚠️ Entry fee exceeds 100 ETH limit. Transaction will fail on-chain.'
     ),
   maxParticipants: z
     .string()
     .refine(
       (val) => val === '' || (!isNaN(Number(val)) && Number(val) >= 0),
       'Max participants must be a number or empty for unlimited'
+    )
+    .refine(
+      (val) => {
+        if (val === '') return true; // Unlimited is OK
+        const num = Number(val);
+        return num !== 1;
+      },
+      '⚠️ Cannot create raffle with only 1 participant. Use 0 for unlimited or 2+ for limited. Transaction will fail on-chain.'
+    )
+    .refine(
+      (val) => {
+        if (val === '') return true; // Unlimited is OK
+        const num = Number(val);
+        return num <= 10000;
+      },
+      '⚠️ Max participants exceeds 10,000 limit (gas DoS protection). Transaction will fail on-chain.'
     ),
 
   // Step 3: Deadline
   deadline: z
     .date()
-    .refine((date) => date > new Date(), 'Deadline must be in the future'),
+    .refine((date) => date > new Date(), 'Deadline must be in the future')
+    .refine(
+      (date) => {
+        const maxDate = new Date();
+        maxDate.setFullYear(maxDate.getFullYear() + 1); // 365 days
+        return date <= maxDate;
+      },
+      '⚠️ Deadline exceeds 365 days limit. Transaction will fail on-chain.'
+    ),
 });
 
 export type CreateRaffleFormData = z.infer<typeof createRaffleSchema>;

@@ -148,6 +148,17 @@ export function CreateRaffleForm() {
             <div className="space-y-6">
               <h2 className="text-2xl font-bold mb-6">Entry & Participants</h2>
 
+              {/* Validation Rules Card - For AI Agents & Users */}
+              <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                <p className="text-sm font-semibold text-blue-400 mb-2">📋 Contract Validation Rules</p>
+                <ul className="text-xs text-gray-300 space-y-1">
+                  <li>• <strong>Entry Fee:</strong> Must be &gt; 0 ETH and ≤ 100 ETH</li>
+                  <li>• <strong>Max Participants:</strong> 0 (unlimited) OR 2-10,000 (limited). Cannot be 1.</li>
+                  <li>• <strong>Deadline:</strong> Must be in future and within 365 days</li>
+                  <li className="text-yellow-400 mt-2">⚠️ Values outside these limits will be rejected by smart contract</li>
+                </ul>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium mb-2">Entry Fee (ETH)</label>
                 <input
@@ -156,6 +167,9 @@ export function CreateRaffleForm() {
                   placeholder="0.01"
                   className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
                 />
+                <p className="text-gray-500 text-xs mt-1">
+                  ℹ️ Must be greater than 0 and less than or equal to 100 ETH
+                </p>
                 {errors.entryFee && (
                   <p className="text-red-400 text-sm mt-1">{errors.entryFee.message}</p>
                 )}
@@ -171,6 +185,9 @@ export function CreateRaffleForm() {
                   placeholder="Leave empty for unlimited"
                   className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
                 />
+                <p className="text-gray-500 text-xs mt-1">
+                  ℹ️ 0 (or empty) = unlimited, 2-10,000 = limited. Cannot use 1 participant.
+                </p>
                 {errors.maxParticipants && (
                   <p className="text-red-400 text-sm mt-1">{errors.maxParticipants.message}</p>
                 )}
@@ -226,6 +243,9 @@ export function CreateRaffleForm() {
                   onChange={(e) => setValue('deadline', new Date(e.target.value))}
                   className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
                 />
+                <p className="text-gray-500 text-xs mt-1">
+                  ℹ️ Deadline must be in the future and within 365 days from now
+                </p>
                 {errors.deadline && (
                   <p className="text-red-400 text-sm mt-1">{errors.deadline.message}</p>
                 )}
@@ -237,6 +257,27 @@ export function CreateRaffleForm() {
           {currentStep === 4 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold mb-6">Review & Confirm</h2>
+
+              {/* Validation Status Check */}
+              {(formValues.maxParticipants === '1' ||
+                Number(formValues.maxParticipants) > 10000 ||
+                Number(formValues.entryFee) > 100) && (
+                <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                  <p className="text-sm font-semibold text-red-400 mb-2">❌ Validation Errors Detected</p>
+                  <ul className="text-xs text-red-300 space-y-1">
+                    {formValues.maxParticipants === '1' && (
+                      <li>• Max Participants cannot be 1 (use 0 for unlimited or 2+)</li>
+                    )}
+                    {Number(formValues.maxParticipants) > 10000 && (
+                      <li>• Max Participants exceeds 10,000 limit</li>
+                    )}
+                    {Number(formValues.entryFee) > 100 && (
+                      <li>• Entry Fee exceeds 100 ETH limit</li>
+                    )}
+                  </ul>
+                  <p className="text-xs text-yellow-400 mt-2">⚠️ Transaction will fail. Please go back and fix these issues.</p>
+                </div>
+              )}
 
               <div className="bg-gray-800/50 rounded-lg p-6 space-y-4">
                 <div>

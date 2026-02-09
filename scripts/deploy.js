@@ -3,11 +3,20 @@ const fs = require("fs");
 const path = require("path");
 
 async function main() {
-  // Get network name
+  // Get network info
   const network = await ethers.provider.getNetwork();
-  const networkName = network.name === "unknown" ? "baseSepolia" : network.name;
+  const chainId = Number(network.chainId);
 
-  console.log(`🚀 Deploying Raffle Party Platform to ${networkName}...\n`);
+  let networkName;
+  if (chainId === 8453) {
+    networkName = "base";
+  } else if (chainId === 84532) {
+    networkName = "baseSepolia";
+  } else {
+    networkName = network.name;
+  }
+
+  console.log(`🚀 Deploying Raffle Party Platform to ${networkName} (Chain ID: ${chainId})...\n`);
 
   // Get deployer account
   const [deployer] = await ethers.getSigners();
@@ -17,10 +26,29 @@ async function main() {
   const balance = await ethers.provider.getBalance(deployer.address);
   console.log("💰 Account balance:", ethers.formatEther(balance), "ETH\n");
 
-  // Chainlink VRF Configuration - Base Sepolia
-  const VRF_COORDINATOR = process.env.VRF_COORDINATOR_BASE_SEPOLIA || "0x5C210eF41CD1a72de73bF76eC39637bB0d3d7BEE";
-  const KEY_HASH = process.env.VRF_KEY_HASH_BASE_SEPOLIA || "0xc799bd1e3bd4d1a41cd4968997a4e03dfd2a3c7c04b695881138580163f42887";
-  const SUBSCRIPTION_ID = process.env.VRF_SUBSCRIPTION_ID || "0";
+  // Chainlink VRF Configuration
+  let VRF_COORDINATOR, KEY_HASH, SUBSCRIPTION_ID;
+
+  if (chainId === 8453) {
+    // Base Mainnet
+    VRF_COORDINATOR = process.env.VRF_COORDINATOR_BASE_MAINNET || "0xd5D517aBE5cF79B7e95eC98dB0f0277788aFF634";
+    KEY_HASH = process.env.VRF_KEY_HASH_BASE_MAINNET || "0x";
+    SUBSCRIPTION_ID = process.env.VRF_SUBSCRIPTION_ID_MAINNET || "0";
+
+    if (SUBSCRIPTION_ID === "0" || KEY_HASH === "0x") {
+      console.log("❌ ERROR: Base Mainnet VRF configuration incomplete!");
+      console.log("📋 Required environment variables:");
+      console.log("   - VRF_SUBSCRIPTION_ID_MAINNET");
+      console.log("   - VRF_KEY_HASH_BASE_MAINNET");
+      console.log("\n⚠️  Aborting deployment. Please configure VRF first.");
+      process.exit(1);
+    }
+  } else {
+    // Base Sepolia (Testnet)
+    VRF_COORDINATOR = process.env.VRF_COORDINATOR_BASE_SEPOLIA || "0x5C210eF41CD1a72de73bF76eC39637bB0d3d7BEE";
+    KEY_HASH = process.env.VRF_KEY_HASH_BASE_SEPOLIA || "0xc799bd1e3bd4d1a41cd4968997a4e03dfd2a3c7c04b695881138580163f42887";
+    SUBSCRIPTION_ID = process.env.VRF_SUBSCRIPTION_ID || "0";
+  }
 
   if (SUBSCRIPTION_ID === "0") {
     console.log("⚠️  WARNING: VRF_SUBSCRIPTION_ID not set!");
@@ -95,13 +123,38 @@ async function main() {
   console.log("✅ Frontend addresses updated!");
 
   console.log("\n🎉 Deployment Complete!\n");
-  console.log("📋 Next Steps:");
-  console.log("   1. Go to https://vrf.chain.link/");
-  console.log("   2. Create a subscription and fund it with LINK");
-  console.log("   3. Add this contract as a consumer:", factoryAddress);
-  console.log("   4. Verify contract on Basescan (optional):");
-  console.log(`      npx hardhat verify --network baseSepolia ${factoryAddress} "${VRF_COORDINATOR}" "${KEY_HASH}" ${SUBSCRIPTION_ID}`);
-  console.log("\n✨ Your raffle platform is ready to use!");
+
+  if (chainId === 8453) {
+    // Mainnet specific instructions
+    console.log("⚠️  MAINNET DEPLOYMENT - READ CAREFULLY:");
+    console.log("\n📋 Critical Next Steps:");
+    console.log("   1. Add factory as VRF consumer:");
+    console.log("      Go to https://vrf.chain.link/");
+    console.log("      Add consumer:", factoryAddress);
+    console.log("\n   2. Verify contract on BaseScan:");
+    console.log(`      npx hardhat verify --network base ${factoryAddress} "${VRF_COORDINATOR}" "${KEY_HASH}" ${SUBSCRIPTION_ID}`);
+    console.log("\n   3. Test with small amounts first:");
+    console.log("      Create a test raffle with 0.001 ETH entry fee");
+    console.log("      Verify draw winner works correctly");
+    console.log("\n   4. Update frontend:");
+    console.log("      - Verify lib/contracts/addresses.ts has correct mainnet address");
+    console.log("      - Update wagmi config for Base mainnet (chainId: 8453)");
+    console.log("\n   5. Security checklist:");
+    console.log("      ✅ All tests passing");
+    console.log("      ✅ Contract verified on BaseScan");
+    console.log("      ✅ VRF consumer added");
+    console.log("      ✅ Small test raffle completed successfully");
+    console.log("\n⚠️  DO NOT promote to users until all steps complete!");
+  } else {
+    // Testnet instructions
+    console.log("📋 Next Steps:");
+    console.log("   1. Go to https://vrf.chain.link/");
+    console.log("   2. Add this contract as a consumer:", factoryAddress);
+    console.log("   3. Verify contract (optional):");
+    console.log(`      npx hardhat verify --network baseSepolia ${factoryAddress} "${VRF_COORDINATOR}" "${KEY_HASH}" ${SUBSCRIPTION_ID}`);
+  }
+
+  console.log("\n✨ Deployment info saved to:", deploymentPath);
 }
 
 main()

@@ -36,6 +36,11 @@ export const RaffleABI = [
       },
       {
         "internalType": "address",
+        "name": "_creator",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
         "name": "_factory",
         "type": "address"
       }
@@ -45,7 +50,27 @@ export const RaffleABI = [
   },
   {
     "inputs": [],
+    "name": "DeadlineMustBeInFuture",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "DeadlineNotReached",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "DeadlineTooFar",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "EntryFeeMustBePositive",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "EntryFeeTooHigh",
     "type": "error"
   },
   {
@@ -55,7 +80,27 @@ export const RaffleABI = [
   },
   {
     "inputs": [],
+    "name": "InvalidFactoryAddress",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidRequestId",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidTicketCount",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "MaxParticipantsTooHigh",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "MinParticipantsTooLow",
     "type": "error"
   },
   {
@@ -100,7 +145,22 @@ export const RaffleABI = [
   },
   {
     "inputs": [],
+    "name": "ReentrancyGuardReentrantCall",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "TransferFailed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "WinnerAlreadyDrawn",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "WinnerAlreadySet",
     "type": "error"
   },
   {

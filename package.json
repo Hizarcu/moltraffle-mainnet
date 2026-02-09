@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "hardhat test",
+    "test:raffle": "hardhat test test/Raffle.test.js",
+    "test:factory": "hardhat test test/RaffleFactory.test.js",
+    "test:integration": "hardhat test test/Integration.test.js",
+    "compile": "hardhat compile"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -31,6 +36,7 @@
   "devDependencies": {
     "@chainlink/contracts": "^1.5.0",
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@openzeppelin/contracts": "^5.4.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

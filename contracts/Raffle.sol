@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
 interface IRaffleFactory {
     function requestRandomnessForRaffle() external returns (uint256 requestId);
 }
@@ -11,7 +13,7 @@ interface IRaffleFactory {
  * @notice Supports multiple ticket purchases per wallet and permissionless winner drawing
  * @dev Requests randomness through RaffleFactory
  */
-contract Raffle {
+contract Raffle is ReentrancyGuard {
     // Raffle status enum
     enum RaffleStatus {
         UPCOMING,
@@ -64,6 +66,16 @@ contract Raffle {
     error PrizeAlreadyClaimed();
     error InvalidTicketCount();
     error OnlyFactory();
+    error DeadlineMustBeInFuture();
+    error EntryFeeMustBePositive();
+    error InvalidFactoryAddress();
+    error MaxParticipantsTooHigh();
+    error MinParticipantsTooLow();
+    error EntryFeeTooHigh();
+    error DeadlineTooFar();
+    error TransferFailed();
+    error InvalidRequestId();
+    error WinnerAlreadySet();
 
     /**
      * @notice Create a new raffle
@@ -73,6 +85,7 @@ contract Raffle {
      * @param _entryFee Entry fee per ticket in wei
      * @param _deadline Deadline timestamp
      * @param _maxParticipants Maximum total tickets (0 = unlimited)
+     * @param _creator Creator address (passed from factory)
      * @param _factory Factory contract address
      */
     constructor(
@@ -82,11 +95,23 @@ contract Raffle {
         uint256 _entryFee,
         uint256 _deadline,
         uint256 _maxParticipants,
+        address _creator,
         address _factory
     ) {
-        require(_deadline > block.timestamp, "Deadline must be in the future");
-        require(_entryFee > 0, "Entry fee must be greater than 0");
-        require(_factory != address(0), "Invalid factory address");
+        // Deadline validation
+        if (_deadline <= block.timestamp) revert DeadlineMustBeInFuture();
+        if (_deadline > block.timestamp + 365 days) revert DeadlineTooFar();
+
+        // Entry fee validation
+        if (_entryFee == 0) revert EntryFeeMustBePositive();
+        if (_entryFee > 100 ether) revert EntryFeeTooHigh();
+
+        // Max participants validation (prevent gas DoS and ensure at least 2 participants)
+        if (_maxParticipants == 1) revert MinParticipantsTooLow();
+        if (_maxParticipants > 10000) revert MaxParticipantsTooHigh();
+
+        // Factory validation
+        if (_factory == address(0)) revert InvalidFactoryAddress();
 
         title = _title;
         description = _description;
@@ -94,7 +119,7 @@ contract Raffle {
         entryFee = _entryFee;
         deadline = _deadline;
         maxParticipants = _maxParticipants;
-        creator = tx.origin; // Creator is the original caller
+        creator = _creator; // Use passed creator address instead of tx.origin
         status = RaffleStatus.ACTIVE;
         factory = IRaffleFactory(_factory);
     }
@@ -130,7 +155,8 @@ contract Raffle {
         // Refund excess payment
         uint256 refund = msg.value - totalCost;
         if (refund > 0) {
-            payable(msg.sender).transfer(refund);
+            (bool success, ) = payable(msg.sender).call{value: refund}("");
+            if (!success) revert TransferFailed();
         }
     }
 
@@ -164,8 +190,8 @@ contract Raffle {
      */
     function fulfillRandomness(uint256 _requestId, uint256 _randomWord) external {
         if (msg.sender != address(factory)) revert OnlyFactory();
-        require(_requestId == vrfRequestId, "Invalid request ID");
-        require(winner == address(0), "Winner already set");
+        if (_requestId != vrfRequestId) revert InvalidRequestId();
+        if (winner != address(0)) revert WinnerAlreadySet();
 
         randomResult = _randomWord;
         winnerIndex = randomResult % participants.length;
@@ -178,7 +204,7 @@ contract Raffle {
     /**
      * @notice Claim prize (winner only)
      */
-    function claimPrize() external {
+    function claimPrize() external nonReentrant {
         if (msg.sender != winner) revert NotWinner();
         if (status != RaffleStatus.DRAWN) revert WinnerAlreadyDrawn();
 
@@ -187,13 +213,14 @@ contract Raffle {
 
         emit PrizeClaimed(winner, prizeAmount);
 
-        payable(winner).transfer(prizeAmount);
+        (bool success, ) = payable(winner).call{value: prizeAmount}("");
+        if (!success) revert TransferFailed();
     }
 
     /**
      * @notice Cancel raffle and refund all participants (creator only, before drawing)
      */
-    function cancelRaffle() external {
+    function cancelRaffle() external nonReentrant {
         if (msg.sender != creator) revert NotCreator();
         if (status == RaffleStatus.DRAWN || status == RaffleStatus.CANCELLED) {
             revert RaffleEnded();
@@ -215,7 +242,8 @@ contract Raffle {
             if (participant != lastRefunded) {
                 uint256 tickets = ticketCount[participant];
                 uint256 refundAmount = tickets * refundPerTicket;
-                payable(participant).transfer(refundAmount);
+                (bool success, ) = payable(participant).call{value: refundAmount}("");
+                if (!success) revert TransferFailed();
                 lastRefunded = participant;
             }
         }
