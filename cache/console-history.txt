@@ -1,0 +1,8 @@
+await factory.paused();
+await factory.unpause();
+await factory.pause();
+const factory = await ethers.getContractAt("RaffleFactory", "0x12B290Ee2b741f700337680bC781492b7F2BFE37");
+await factory.pause();
+const factory = await ethers.getContractAt("RaffleFactory", "0x12B290Ee2b741f700337680bC781492b7F2BFE37");
+.help
+const factory = await ethers.getContractAt("RaffleFactory", "0x12B290Ee2b741f700337680bC781492b7F2BFE37");
