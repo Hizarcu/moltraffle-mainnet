@@ -15,8 +15,9 @@ services:
     environment:
       NODE_ENV: production
     networks:
-      - raffle-network
+      - docker_network
 
 networks:
-  raffle-network:
-    driver: bridge
+  docker_network:
+    external: true
+    name: docker_docker_network
