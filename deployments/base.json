@@ -1,0 +1,14 @@
+{
+  "network": "base",
+  "chainId": 8453,
+  "deployer": "0xc0434096087f47f47475363a6A4ddB986B8417cC",
+  "timestamp": "2026-02-10T15:54:34.654Z",
+  "contracts": {
+    "RaffleFactory": {
+      "address": "0x480b9708f619AbECE5c7E651A9D16ffb3FFeFaDe",
+      "vrfCoordinator": "0xd5D517aBE5cF79B7e95eC98dB0f0277788aFF634",
+      "keyHash": "0xdc2f87677b01473c763cb0aee938ed3341512f6057324a584e5944e786144d70",
+      "subscriptionId": "110392863819721429669413868624315381366716376810057856867155291114384648050109"
+    }
+  }
+}
