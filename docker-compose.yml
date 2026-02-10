@@ -7,8 +7,7 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: ${NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID}
-        NEXT_PUBLIC_FACTORY_ADDRESS_BASE_SEPOLIA: ${NEXT_PUBLIC_FACTORY_ADDRESS_BASE_SEPOLIA}
-        NEXT_PUBLIC_ENABLE_TESTNET: "true"
+        NEXT_PUBLIC_BASE_RPC_URL: ${NEXT_PUBLIC_BASE_RPC_URL:-https://mainnet.base.org}
     container_name: raffle-app
     restart: unless-stopped
     ports:
