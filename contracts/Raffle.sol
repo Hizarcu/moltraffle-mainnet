@@ -20,7 +20,8 @@ contract Raffle is ReentrancyGuard {
         ACTIVE,
         ENDED,
         DRAWN,
-        CANCELLED
+        CANCELLED,
+        CLAIMED
     }
 
     // Raffle details
@@ -54,6 +55,7 @@ contract Raffle is ReentrancyGuard {
     event CreatorCommissionPaid(address indexed creator, uint256 amount);
     event RaffleCancelled();
     event RandomnessRequested(uint256 requestId);
+    event RefundWithdrawn(address indexed participant, uint256 amount);
 
     // Errors
     error NotCreator();
@@ -80,6 +82,9 @@ contract Raffle is ReentrancyGuard {
     error InvalidRequestId();
     error WinnerAlreadySet();
     error InvalidCommission();
+    error DrawInProgress();
+    error RaffleNotCancelled();
+    error NoRefundAvailable();
 
     /**
      * @notice Create a new raffle
@@ -139,7 +144,7 @@ contract Raffle is ReentrancyGuard {
      * @param _ticketCount Number of tickets to purchase
      * @dev Same wallet can buy multiple tickets for better odds
      */
-    function joinRaffle(uint256 _ticketCount) external payable {
+    function joinRaffle(uint256 _ticketCount) external payable nonReentrant {
         if (status != RaffleStatus.ACTIVE) revert RaffleNotActive();
         if (block.timestamp >= deadline) revert RaffleEnded();
         if (_ticketCount == 0) revert InvalidTicketCount();
@@ -218,9 +223,9 @@ contract Raffle is ReentrancyGuard {
      */
     function claimPrize() external nonReentrant {
         if (msg.sender != winner) revert NotWinner();
-        if (status != RaffleStatus.DRAWN) revert WinnerAlreadyDrawn();
+        if (status != RaffleStatus.DRAWN) revert PrizeAlreadyClaimed();
 
-        status = RaffleStatus.CANCELLED; // Prevent re-claiming
+        status = RaffleStatus.CLAIMED;
         uint256 prizeAmount = address(this).balance;
 
         // Calculate creator commission
@@ -242,36 +247,40 @@ contract Raffle is ReentrancyGuard {
     }
 
     /**
-     * @notice Cancel raffle and refund all participants (creator only, before drawing)
+     * @notice Cancel raffle (creator anytime before draw, anyone if underfilled after deadline)
+     * @dev Uses pull pattern: sets status to CANCELLED, participants withdraw via withdrawRefund()
      */
-    function cancelRaffle() external nonReentrant {
+    function cancelRaffle() external {
         bool isUnderfilled = block.timestamp >= deadline && participants.length < 2;
         if (msg.sender != creator && !isUnderfilled) revert NotCreator();
-        if (status == RaffleStatus.DRAWN || status == RaffleStatus.CANCELLED) {
+
+        // Block cancel during VRF pending (ENDED), after winner drawn (DRAWN), already cancelled, or claimed
+        if (status == RaffleStatus.ENDED) revert DrawInProgress();
+        if (status == RaffleStatus.DRAWN || status == RaffleStatus.CANCELLED || status == RaffleStatus.CLAIMED) {
             revert RaffleEnded();
         }
 
         status = RaffleStatus.CANCELLED;
         emit RaffleCancelled();
+    }
 
-        // Refund all participants
-        uint256 refundPerTicket = entryFee;
-        address[] memory participantsSnapshot = participants; // Gas optimization
+    /**
+     * @notice Withdraw refund after raffle cancellation (pull pattern)
+     * @dev Each participant calls this individually — eliminates DoS, double-refund, and gas limit issues
+     */
+    function withdrawRefund() external nonReentrant {
+        if (status != RaffleStatus.CANCELLED) revert RaffleNotCancelled();
+        uint256 tickets = ticketCount[msg.sender];
+        if (tickets == 0) revert NoRefundAvailable();
 
-        // Use ticketCount mapping for efficient refunds
-        address lastRefunded = address(0);
-        for (uint256 i = 0; i < participantsSnapshot.length; i++) {
-            address participant = participantsSnapshot[i];
+        // Zero out before transfer (checks-effects-interactions)
+        ticketCount[msg.sender] = 0;
+        uint256 refundAmount = tickets * entryFee;
 
-            // Only refund once per unique address
-            if (participant != lastRefunded) {
-                uint256 tickets = ticketCount[participant];
-                uint256 refundAmount = tickets * refundPerTicket;
-                (bool success, ) = payable(participant).call{value: refundAmount}("");
-                if (!success) revert TransferFailed();
-                lastRefunded = participant;
-            }
-        }
+        emit RefundWithdrawn(msg.sender, refundAmount);
+
+        (bool success, ) = payable(msg.sender).call{value: refundAmount}("");
+        if (!success) revert TransferFailed();
     }
 
     // View functions

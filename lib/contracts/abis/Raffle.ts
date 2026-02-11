@@ -70,6 +70,11 @@ export const RaffleABI = [
   },
   {
     "inputs": [],
+    "name": "DrawInProgress",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "EntryFeeMustBePositive",
     "type": "error"
   },
@@ -81,6 +86,11 @@ export const RaffleABI = [
   {
     "inputs": [],
     "name": "InsufficientPayment",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidCommission",
     "type": "error"
   },
   {
@@ -115,12 +125,17 @@ export const RaffleABI = [
   },
   {
     "inputs": [],
-    "name": "NotEnoughParticipants",
+    "name": "NoRefundAvailable",
     "type": "error"
   },
   {
     "inputs": [],
     "name": "NotCreator",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotEnoughParticipants",
     "type": "error"
   },
   {
@@ -155,6 +170,11 @@ export const RaffleABI = [
   },
   {
     "inputs": [],
+    "name": "RaffleNotCancelled",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "ReentrancyGuardReentrantCall",
     "type": "error"
   },
@@ -174,9 +194,23 @@ export const RaffleABI = [
     "type": "error"
   },
   {
-    "inputs": [],
-    "name": "InvalidCommission",
-    "type": "error"
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "CreatorCommissionPaid",
+    "type": "event"
   },
   {
     "anonymous": false,
@@ -230,25 +264,6 @@ export const RaffleABI = [
   },
   {
     "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "creator",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
-    ],
-    "name": "CreatorCommissionPaid",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
     "inputs": [],
     "name": "RaffleCancelled",
     "type": "event"
@@ -264,6 +279,25 @@ export const RaffleABI = [
       }
     ],
     "name": "RandomnessRequested",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "participant",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "RefundWithdrawn",
     "type": "event"
   },
   {
@@ -689,6 +723,13 @@ export const RaffleABI = [
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "withdrawRefund",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   }
 ] as const;

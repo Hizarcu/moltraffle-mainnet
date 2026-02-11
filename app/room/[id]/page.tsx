@@ -131,8 +131,11 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
 
   const hasWinner = !!(raffle.winner && raffle.winner !== '0x0000000000000000000000000000000000000000');
 
-  // Check if prize was already claimed (status = CANCELLED after claiming)
-  const prizeClaimed = typeof raffle.status === 'number' && raffle.status === 4;
+  // Check if prize was already claimed (status = CLAIMED = 5)
+  const prizeClaimed = typeof raffle.status === 'number' && raffle.status === 5;
+
+  // Check if raffle is cancelled (status = CANCELLED = 4)
+  const isCancelled = typeof raffle.status === 'number' && raffle.status === 4;
 
   // Check if max participants reached
   const isMaxParticipantsReached = (raffle.maxParticipants ?? 0) > 0 && raffle.currentParticipants >= (raffle.maxParticipants ?? 0);
@@ -178,8 +181,16 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
             <div className="flex items-center gap-3">
-              <Badge variant={status === 0 ? 'success' : status === 1 ? 'warning' : 'default'}>
-                {status === 0 ? 'ACTIVE' : status === 1 ? 'ENDED' : 'DRAWN'}
+              <Badge variant={
+                isCancelled ? 'warning' :
+                status === 0 ? 'success' :
+                status === 1 ? 'warning' :
+                'default'
+              }>
+                {isCancelled ? 'CANCELLED' :
+                 prizeClaimed ? 'CLAIMED' :
+                 status === 0 ? 'ACTIVE' :
+                 status === 1 ? 'ENDED' : 'DRAWN'}
               </Badge>
               {hasJoined && (
                 <Badge variant="info">You&apos;re Participating</Badge>
@@ -292,7 +303,7 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
           <div className="lg:col-span-1">
             <div className="sticky top-24 space-y-4">
               {/* Join Raffle Card */}
-              {isActive && (
+              {isActive && !isCancelled && (
                 <JoinRaffleButton
                   raffle={raffle}
                   hasJoined={!!hasJoined}
@@ -309,6 +320,8 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
                   hasParticipants={hasParticipants}
                   hasWinner={hasWinner}
                   participantCount={raffle.currentParticipants}
+                  isCancelled={isCancelled}
+                  userTicketCount={userTicketCount}
                   onSuccess={handleDrawSuccess}
                 />
               )}
