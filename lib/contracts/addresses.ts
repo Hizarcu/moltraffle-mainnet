@@ -5,7 +5,7 @@
 export const CONTRACT_ADDRESSES = {
   // Base Mainnet
   8453: {
-    RaffleFactory: '0x480b9708f619AbECE5c7E651A9D16ffb3FFeFaDe', // Set after deployment
+    RaffleFactory: '0xd4c13e103c72fC1D0C5F41ED7aC53a26498dE34E', // Set after deployment
   },
 } as const;
 
