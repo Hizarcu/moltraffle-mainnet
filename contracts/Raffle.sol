@@ -32,6 +32,7 @@ contract Raffle is ReentrancyGuard {
     uint256 public maxParticipants; // Max total tickets (0 = unlimited)
     address public creator;
     RaffleStatus public status;
+    uint256 public creatorCommissionBps; // 100 = 1%, 1000 = 10%
 
     // Participants - stores ticket entries (same address can appear multiple times)
     address[] public participants; // Each entry = 1 ticket
@@ -50,6 +51,7 @@ contract Raffle is ReentrancyGuard {
     event ParticipantJoined(address indexed participant, uint256 ticketsBought, uint256 totalTickets, uint256 participantTicketCount);
     event WinnerDrawn(address indexed winner, uint256 winnerIndex, uint256 randomNumber, uint256 vrfRequestId);
     event PrizeClaimed(address indexed winner, uint256 amount);
+    event CreatorCommissionPaid(address indexed creator, uint256 amount);
     event RaffleCancelled();
     event RandomnessRequested(uint256 requestId);
 
@@ -61,6 +63,7 @@ contract Raffle is ReentrancyGuard {
     error RaffleFull();
     error DeadlineNotReached();
     error NoParticipants();
+    error NotEnoughParticipants();
     error WinnerAlreadyDrawn();
     error NotWinner();
     error PrizeAlreadyClaimed();
@@ -76,6 +79,7 @@ contract Raffle is ReentrancyGuard {
     error TransferFailed();
     error InvalidRequestId();
     error WinnerAlreadySet();
+    error InvalidCommission();
 
     /**
      * @notice Create a new raffle
@@ -87,6 +91,7 @@ contract Raffle is ReentrancyGuard {
      * @param _maxParticipants Maximum total tickets (0 = unlimited)
      * @param _creator Creator address (passed from factory)
      * @param _factory Factory contract address
+     * @param _creatorCommissionBps Creator commission in basis points (0-1000, i.e. 0%-10%)
      */
     constructor(
         string memory _title,
@@ -96,7 +101,8 @@ contract Raffle is ReentrancyGuard {
         uint256 _deadline,
         uint256 _maxParticipants,
         address _creator,
-        address _factory
+        address _factory,
+        uint256 _creatorCommissionBps
     ) {
         // Deadline validation
         if (_deadline <= block.timestamp) revert DeadlineMustBeInFuture();
@@ -113,6 +119,9 @@ contract Raffle is ReentrancyGuard {
         // Factory validation
         if (_factory == address(0)) revert InvalidFactoryAddress();
 
+        // Commission validation (0-10%)
+        if (_creatorCommissionBps > 1000) revert InvalidCommission();
+
         title = _title;
         description = _description;
         prizeDescription = _prizeDescription;
@@ -122,6 +131,7 @@ contract Raffle is ReentrancyGuard {
         creator = _creator; // Use passed creator address instead of tx.origin
         status = RaffleStatus.ACTIVE;
         factory = IRaffleFactory(_factory);
+        creatorCommissionBps = _creatorCommissionBps;
     }
 
     /**
@@ -170,6 +180,7 @@ contract Raffle is ReentrancyGuard {
             revert DeadlineNotReached();
         }
         if (participants.length == 0) revert NoParticipants();
+        if (participants.length < 2) revert NotEnoughParticipants();
         if (winner != address(0)) revert WinnerAlreadyDrawn();
 
         status = RaffleStatus.ENDED;
@@ -203,6 +214,7 @@ contract Raffle is ReentrancyGuard {
 
     /**
      * @notice Claim prize (winner only)
+     * @dev Splits payout between winner and creator based on creatorCommissionBps
      */
     function claimPrize() external nonReentrant {
         if (msg.sender != winner) revert NotWinner();
@@ -211,17 +223,30 @@ contract Raffle is ReentrancyGuard {
         status = RaffleStatus.CANCELLED; // Prevent re-claiming
         uint256 prizeAmount = address(this).balance;
 
-        emit PrizeClaimed(winner, prizeAmount);
+        // Calculate creator commission
+        uint256 creatorAmount = (prizeAmount * creatorCommissionBps) / 10000;
+        uint256 winnerAmount = prizeAmount - creatorAmount;
 
-        (bool success, ) = payable(winner).call{value: prizeAmount}("");
-        if (!success) revert TransferFailed();
+        emit PrizeClaimed(winner, winnerAmount);
+
+        // Send winner their share
+        (bool winnerSuccess, ) = payable(winner).call{value: winnerAmount}("");
+        if (!winnerSuccess) revert TransferFailed();
+
+        // Send creator their commission (if any)
+        if (creatorAmount > 0) {
+            emit CreatorCommissionPaid(creator, creatorAmount);
+            (bool creatorSuccess, ) = payable(creator).call{value: creatorAmount}("");
+            if (!creatorSuccess) revert TransferFailed();
+        }
     }
 
     /**
      * @notice Cancel raffle and refund all participants (creator only, before drawing)
      */
     function cancelRaffle() external nonReentrant {
-        if (msg.sender != creator) revert NotCreator();
+        bool isUnderfilled = block.timestamp >= deadline && participants.length < 2;
+        if (msg.sender != creator && !isUnderfilled) revert NotCreator();
         if (status == RaffleStatus.DRAWN || status == RaffleStatus.CANCELLED) {
             revert RaffleEnded();
         }
@@ -275,7 +300,8 @@ contract Raffle is ReentrancyGuard {
         uint256 _currentParticipants,
         RaffleStatus _status,
         address _creator,
-        address _winner
+        address _winner,
+        uint256 _creatorCommissionBps
     ) {
         return (
             title,
@@ -286,7 +312,8 @@ contract Raffle is ReentrancyGuard {
             participants.length,
             status,
             creator,
-            winner
+            winner,
+            creatorCommissionBps
         );
     }
 }

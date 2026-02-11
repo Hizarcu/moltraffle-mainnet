@@ -46,6 +46,14 @@ export const createRaffleSchema = z.object({
       '⚠️ Max participants exceeds 10,000 limit (gas DoS protection). Transaction will fail on-chain.'
     ),
 
+  // Creator Commission (Step 2)
+  creatorCommission: z
+    .string()
+    .refine(
+      (val) => !isNaN(Number(val)) && Number(val) >= 0 && Number(val) <= 10 && Number.isInteger(Number(val)),
+      'Commission must be a whole number between 0 and 10'
+    ),
+
   // Step 3: Deadline
   deadline: z
     .date()
@@ -67,16 +75,19 @@ export const defaultValues: Partial<CreateRaffleFormData> = {
   description: '',
   entryFee: '0.01',
   maxParticipants: '',
+  creatorCommission: '0',
 };
 
 // Helper to calculate prize description automatically
-export function generatePrizeDescription(entryFee: string, maxParticipants: string): string {
+export function generatePrizeDescription(entryFee: string, maxParticipants: string, creatorCommission?: string): string {
   const fee = Number(entryFee) || 0;
   const max = maxParticipants === '' ? 0 : Number(maxParticipants);
+  const commission = Number(creatorCommission) || 0;
+  const commissionNote = commission > 0 ? ` (${commission}% creator commission)` : '';
 
   if (max > 0) {
     const maxPrize = (fee * max).toFixed(4);
-    return `Prize Pool: Up to ${maxPrize} ETH (${max} participants x ${fee} ETH)`;
+    return `Prize Pool: Up to ${maxPrize} ETH (${max} participants x ${fee} ETH)${commissionNote}`;
   }
-  return `Dynamic Prize Pool: Entry Fee ${fee} ETH x Number of Participants`;
+  return `Dynamic Prize Pool: Entry Fee ${fee} ETH x Number of Participants${commissionNote}`;
 }

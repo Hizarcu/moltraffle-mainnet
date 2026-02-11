@@ -14,6 +14,7 @@ import { ParticipantList } from '@/components/raffle/ParticipantList';
 import { JoinRaffleButton } from '@/components/raffle/JoinRaffleButton';
 import { WinnerDisplay } from '@/components/raffle/WinnerDisplay';
 import { DrawWinnerButton } from '@/components/raffle/DrawWinnerButton';
+import { ShareButton } from '@/components/raffle/ShareButton';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useRaffleDetails } from '@/lib/contracts/hooks/useAllRaffles';
 import { formatAddress, formatDate, getStatusColor } from '@/lib/utils/formatting';
@@ -187,7 +188,16 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
             <CountdownTimer deadline={raffle.deadline} />
           </div>
 
-          <h1 className="text-4xl font-bold mb-4">{raffle.title}</h1>
+          <div className="flex items-center gap-3 mb-4">
+            <h1 className="text-4xl font-bold">{raffle.title}</h1>
+            <ShareButton
+              raffleId={id}
+              title={raffle.title}
+              prizePool={raffle.totalPrizePoolFormatted || `${raffle.prizePool.toFixed(4)} ETH`}
+              winner={hasWinner ? raffle.winner : undefined}
+              mode={isDrawn ? 'winner' : 'active'}
+            />
+          </div>
           <p className="text-lg text-text-secondary">{raffle.description}</p>
         </div>
 
@@ -217,6 +227,16 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
                     </>
                   )}
                 </p>
+                {(raffle.creatorCommissionBps ?? 0) > 0 && (
+                  <div className="mt-3 pt-3 border-t border-primary-purple/20">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-yellow-400">Creator earns {(raffle.creatorCommissionBps! / 100)}%</span>
+                      <span className="text-text-secondary">
+                        Winner receives {(raffle.prizePool * (1 - raffle.creatorCommissionBps! / 10000)).toFixed(4)} ETH
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             </Card>
 
@@ -257,6 +277,8 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
                 prizePool={raffle.totalPrizePoolFormatted || `${raffle.prizePool.toFixed(4)} ETH`}
                 totalParticipants={raffle.participants.length}
                 raffleAddress={raffle.contractAddress}
+                raffleId={id}
+                raffleTitle={raffle.title}
                 prizeClaimed={prizeClaimed}
                 onClaimSuccess={() => refetch()}
               />
@@ -286,6 +308,7 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
                   hasEnded={isReadyToDraw}
                   hasParticipants={hasParticipants}
                   hasWinner={hasWinner}
+                  participantCount={raffle.currentParticipants}
                   onSuccess={handleDrawSuccess}
                 />
               )}

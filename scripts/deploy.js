@@ -81,7 +81,6 @@ async function main() {
   console.log("");
 
   // Save deployment info
-  const chainId = Number(network.chainId);
   const deploymentInfo = {
     network: networkName,
     chainId: chainId,

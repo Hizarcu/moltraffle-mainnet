@@ -13,6 +13,7 @@ interface CreateRaffleParams {
   entryFee: string; // in ETH
   deadline: Date;
   maxParticipants: string; // empty string = unlimited (0)
+  creatorCommission: string; // "0"-"10" (percent)
   chainId: number;
 }
 
@@ -76,6 +77,7 @@ export function useCreateRaffle(options?: UseCreateRaffleOptions) {
 
     const deadlineTimestamp = BigInt(Math.floor(params.deadline.getTime() / 1000));
     const maxParticipants = params.maxParticipants === '' ? BigInt(0) : BigInt(params.maxParticipants);
+    const creatorCommissionBps = BigInt(Number(params.creatorCommission) * 100);
 
     // Calculate creation fee
     const creationFee = calculateCreationFeeWei(params.entryFee, params.maxParticipants);
@@ -92,6 +94,7 @@ export function useCreateRaffle(options?: UseCreateRaffleOptions) {
           parseEther(params.entryFee),
           deadlineTimestamp,
           maxParticipants,
+          creatorCommissionBps,
         ],
         value: creationFee,
       });

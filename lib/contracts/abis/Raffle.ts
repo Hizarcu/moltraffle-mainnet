@@ -43,6 +43,11 @@ export const RaffleABI = [
         "internalType": "address",
         "name": "_factory",
         "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_creatorCommissionBps",
+        "type": "uint256"
       }
     ],
     "stateMutability": "nonpayable",
@@ -110,6 +115,11 @@ export const RaffleABI = [
   },
   {
     "inputs": [],
+    "name": "NotEnoughParticipants",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "NotCreator",
     "type": "error"
   },
@@ -164,6 +174,11 @@ export const RaffleABI = [
     "type": "error"
   },
   {
+    "inputs": [],
+    "name": "InvalidCommission",
+    "type": "error"
+  },
+  {
     "anonymous": false,
     "inputs": [
       {
@@ -211,6 +226,25 @@ export const RaffleABI = [
       }
     ],
     "name": "PrizeClaimed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "CreatorCommissionPaid",
     "type": "event"
   },
   {
@@ -285,6 +319,19 @@ export const RaffleABI = [
         "internalType": "address",
         "name": "",
         "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "creatorCommissionBps",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -447,6 +494,11 @@ export const RaffleABI = [
         "internalType": "address",
         "name": "_winner",
         "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_creatorCommissionBps",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",

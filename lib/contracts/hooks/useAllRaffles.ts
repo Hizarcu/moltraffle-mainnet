@@ -137,7 +137,7 @@ export function useRaffleDetails(raffleAddress: string) {
   }, [refetchInfo, refetchParticipants, refetchWinner, refetchVrf, refetchRandom, refetchWinnerIndex]);
 
   // Transform blockchain data to Raffle type
-  // getRaffleDetails returns: (title, description, entryFee, deadline, maxParticipants, currentParticipants, status, creator, winner)
+  // getRaffleDetails returns: (title, description, entryFee, deadline, maxParticipants, currentParticipants, status, creator, winner, creatorCommissionBps)
   const raffle: Raffle | null = raffleInfo ? (() => {
     const deadlineTimestamp = Number((raffleInfo as any)[3]);
     const deadlineDate = new Date(deadlineTimestamp * 1000);
@@ -162,6 +162,7 @@ export function useRaffleDetails(raffleAddress: string) {
     const entryFeeEth = parseFloat(formatEther(entryFeeWei));
     const participantCount = Number((raffleInfo as any)[5]);
     const prizePoolEth = entryFeeEth * participantCount;
+    const commissionBps = Number((raffleInfo as any)[9] || 0);
 
     return {
       id: raffleAddress,
@@ -175,6 +176,7 @@ export function useRaffleDetails(raffleAddress: string) {
       maxParticipants: Number((raffleInfo as any)[4]),
       currentParticipants: participantCount,
       creator: (raffleInfo as any)[7],
+      creatorCommissionBps: commissionBps,
       status: actualStatus as unknown as RaffleStatus,
       participants: (participants as string[]) || [],
       totalPrizePool: BigInt(Math.floor(prizePoolEth * 1e18)),

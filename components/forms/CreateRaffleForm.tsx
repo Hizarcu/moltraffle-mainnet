@@ -57,7 +57,7 @@ export function CreateRaffleForm() {
         fieldsToValidate = ['title', 'description'];
         break;
       case 2:
-        fieldsToValidate = ['entryFee', 'maxParticipants'];
+        fieldsToValidate = ['entryFee', 'maxParticipants', 'creatorCommission'];
         break;
       case 3:
         fieldsToValidate = ['deadline'];
@@ -82,7 +82,7 @@ export function CreateRaffleForm() {
     }
 
     // Auto-generate prize description based on entry fee and max participants
-    const prizeDescription = generatePrizeDescription(data.entryFee, data.maxParticipants);
+    const prizeDescription = generatePrizeDescription(data.entryFee, data.maxParticipants, data.creatorCommission);
 
     createRaffle({
       title: data.title,
@@ -91,6 +91,7 @@ export function CreateRaffleForm() {
       entryFee: data.entryFee,
       deadline: data.deadline,
       maxParticipants: data.maxParticipants,
+      creatorCommission: data.creatorCommission,
       chainId,
     });
   };
@@ -190,6 +191,39 @@ export function CreateRaffleForm() {
                 </p>
                 {errors.maxParticipants && (
                   <p className="text-red-400 text-sm mt-1">{errors.maxParticipants.message}</p>
+                )}
+              </div>
+
+              {/* Creator Commission */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Creator Commission: {formValues.creatorCommission || '0'}%
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="10"
+                  step="1"
+                  value={formValues.creatorCommission || '0'}
+                  onChange={(e) => setValue('creatorCommission', e.target.value, { shouldValidate: true })}
+                  className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                />
+                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                  <span>0% (no commission)</span>
+                  <span>10% (max)</span>
+                </div>
+                {Number(formValues.creatorCommission) > 0 && formValues.entryFee && Number(formValues.entryFee) > 0 && (
+                  <div className="mt-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                    <p className="text-sm text-yellow-400">
+                      You earn {formValues.creatorCommission}% of the prize pool
+                      {formValues.maxParticipants && formValues.maxParticipants !== '' ? (
+                        <span className="text-gray-400"> — up to {((Number(formValues.entryFee) * Number(formValues.maxParticipants) * Number(formValues.creatorCommission)) / 100).toFixed(4)} ETH</span>
+                      ) : null}
+                    </p>
+                  </div>
+                )}
+                {errors.creatorCommission && (
+                  <p className="text-red-400 text-sm mt-1">{errors.creatorCommission.message}</p>
                 )}
               </div>
 
@@ -323,6 +357,26 @@ export function CreateRaffleForm() {
                     </p>
                   )}
                 </div>
+
+                {/* Creator Commission */}
+                {Number(formValues.creatorCommission) > 0 && (
+                  <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm text-yellow-400 font-medium">Creator Commission</p>
+                        <p className="text-xs text-gray-400">Deducted from prize pool when winner claims</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-yellow-400">{formValues.creatorCommission}%</p>
+                        {formValues.maxParticipants && formValues.maxParticipants !== '' && (
+                          <p className="text-xs text-gray-400">
+                            up to {((Number(formValues.entryFee || 0) * Number(formValues.maxParticipants) * Number(formValues.creatorCommission)) / 100).toFixed(4)} ETH
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Creation Fee */}
                 {creationFee !== null && (

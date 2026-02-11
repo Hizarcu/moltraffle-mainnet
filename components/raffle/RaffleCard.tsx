@@ -7,6 +7,7 @@ import { CountdownTimer } from './CountdownTimer';
 import { Raffle, RaffleStatus } from '@/lib/types/raffle';
 import { formatAddress, formatPercentage, getStatusColor } from '@/lib/utils/formatting';
 import { cn } from '@/lib/utils/cn';
+import { ShareButton } from './ShareButton';
 
 interface RaffleCardProps {
   raffle: Raffle;
@@ -111,12 +112,21 @@ export function RaffleCard({ raffle, className }: RaffleCardProps) {
           )}
         </div>
 
-        {/* Hover Effect Indicator */}
+        {/* Footer */}
         <div className="mt-4 pt-4 border-t border-border flex items-center justify-between text-sm text-text-muted">
-          <span>View Details</span>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
+          <ShareButton
+            raffleId={raffle.id}
+            title={raffle.title}
+            prizePool={raffle.totalPrizePoolFormatted}
+            mode="active"
+            size="sm"
+          />
+          <div className="flex items-center gap-1">
+            <span>View Details</span>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
         </div>
       </Card>
     </Link>

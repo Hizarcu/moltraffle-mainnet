@@ -226,6 +226,12 @@ export const RaffleFactoryABI = [
         "internalType": "uint256",
         "name": "maxParticipants",
         "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "creatorCommissionBps",
+        "type": "uint256"
       }
     ],
     "name": "RaffleCreated",
@@ -407,6 +413,11 @@ export const RaffleFactoryABI = [
       {
         "internalType": "uint256",
         "name": "_maxParticipants",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_creatorCommissionBps",
         "type": "uint256"
       }
     ],

@@ -44,6 +44,7 @@ export interface Raffle {
 
   // Creator
   creator: string;
+  creatorCommissionBps?: number;
 
   // Blockchain details
   contractAddress: string;

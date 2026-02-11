@@ -5,6 +5,7 @@ import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { useAccount } from 'wagmi';
 import { useClaimPrize } from '@/lib/contracts/hooks/useClaimPrize';
+import { ShareButton } from './ShareButton';
 
 interface WinnerDisplayProps {
   winner: string;
@@ -14,6 +15,8 @@ interface WinnerDisplayProps {
   prizePool: string | number;
   totalParticipants: number;
   raffleAddress: string;
+  raffleId?: string;
+  raffleTitle?: string;
   prizeClaimed: boolean;
   onClaimSuccess?: () => void;
 }
@@ -26,6 +29,8 @@ export function WinnerDisplay({
   prizePool,
   totalParticipants,
   raffleAddress,
+  raffleId,
+  raffleTitle,
   prizeClaimed,
   onClaimSuccess,
 }: WinnerDisplayProps) {
@@ -45,6 +50,17 @@ export function WinnerDisplay({
       <div className="text-center mb-6">
         <div className="text-6xl mb-4">🎉</div>
         <h2 className="text-3xl font-bold mb-2">Winner Selected!</h2>
+        {raffleId && (
+          <div className="flex justify-center mb-2">
+            <ShareButton
+              raffleId={raffleId}
+              title={raffleTitle || 'Raffle'}
+              prizePool={typeof prizePool === 'string' ? prizePool : `${prizePool} ETH`}
+              winner={winner}
+              mode="winner"
+            />
+          </div>
+        )}
         <p className="text-gray-400">
           {isWinner ? "🎊 Congratulations! You won! 🎊" : "Congratulations to the lucky winner"}
         </p>

@@ -44,7 +44,8 @@ contract RaffleFactory is VRFConsumerBaseV2Plus, Pausable {
         string title,
         uint256 entryFee,
         uint256 deadline,
-        uint256 maxParticipants
+        uint256 maxParticipants,
+        uint256 creatorCommissionBps
     );
 
     event RandomnessRequested(address indexed raffle, uint256 indexed requestId);
@@ -107,7 +108,8 @@ contract RaffleFactory is VRFConsumerBaseV2Plus, Pausable {
         string memory _prizeDescription,
         uint256 _entryFee,
         uint256 _deadline,
-        uint256 _maxParticipants
+        uint256 _maxParticipants,
+        uint256 _creatorCommissionBps
     ) external payable whenNotPaused returns (address raffleAddress) {
         // Check creation fee
         uint256 requiredFee = calculateCreationFee(_entryFee, _maxParticipants);
@@ -122,7 +124,8 @@ contract RaffleFactory is VRFConsumerBaseV2Plus, Pausable {
             _deadline,
             _maxParticipants,
             msg.sender, // Pass creator address (fixes tx.origin vulnerability)
-            address(this) // Pass factory address
+            address(this), // Pass factory address
+            _creatorCommissionBps
         );
 
         raffleAddress = address(newRaffle);
@@ -138,7 +141,8 @@ contract RaffleFactory is VRFConsumerBaseV2Plus, Pausable {
             _title,
             _entryFee,
             _deadline,
-            _maxParticipants
+            _maxParticipants,
+            _creatorCommissionBps
         );
 
         // Refund excess fee

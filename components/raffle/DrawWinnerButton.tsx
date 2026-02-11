@@ -1,14 +1,15 @@
 'use client';
 
 import { Button } from '../ui/Button';
-import { Card } from '../ui/Card';
 import { useDrawWinner } from '@/lib/contracts/hooks/useDrawWinner';
+import { useCancelRaffle } from '@/lib/contracts/hooks/useCancelRaffle';
 
 interface DrawWinnerButtonProps {
   raffleAddress: string;
   hasEnded: boolean;
   hasParticipants: boolean;
   hasWinner: boolean;
+  participantCount: number;
   onSuccess?: () => void;
 }
 
@@ -17,9 +18,11 @@ export function DrawWinnerButton({
   hasEnded,
   hasParticipants,
   hasWinner,
+  participantCount,
   onSuccess,
 }: DrawWinnerButtonProps) {
   const { drawWinner, isDrawing } = useDrawWinner(raffleAddress, { onSuccess });
+  const { cancelRaffle, isCancelling } = useCancelRaffle(raffleAddress, { onSuccess });
 
   // Winner already drawn - don't show anything
   if (hasWinner) {
@@ -35,11 +38,21 @@ export function DrawWinnerButton({
     );
   }
 
-  if (!hasParticipants) {
+  // Ended but not enough participants - show underfilled state
+  if (participantCount < 2) {
     return (
-      <Button disabled className="w-full">
-        No Participants
-      </Button>
+      <div className="space-y-3">
+        <Button disabled className="w-full">
+          Not Enough Participants
+        </Button>
+        <Button
+          onClick={cancelRaffle}
+          disabled={isCancelling}
+          className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+        >
+          {isCancelling ? 'Refunding...' : 'Cancel & Refund'}
+        </Button>
+      </div>
     );
   }
 

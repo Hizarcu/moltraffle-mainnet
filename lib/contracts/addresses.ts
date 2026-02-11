@@ -21,7 +21,7 @@ export const CONTRACT_ADDRESSES = {
 
   // Base Sepolia Testnet
   84532: {
-    RaffleFactory: '0x12B290Ee2b741f700337680bC781492b7F2BFE37', // Deployed factory address
+    RaffleFactory: '0x0A7c2E2Eb08e198800C57CD75eA73d6D335B1BDc', // Deployed factory address
   },
 
   // Avalanche Mainnet

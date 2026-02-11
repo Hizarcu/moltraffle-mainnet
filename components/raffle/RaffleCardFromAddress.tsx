@@ -4,6 +4,7 @@ import { Card } from '../ui/Card';
 import { Skeleton } from '../ui/Skeleton';
 import { useRaffleDetails } from '@/lib/contracts/hooks/useAllRaffles';
 import Link from 'next/link';
+import { ShareButton } from './ShareButton';
 
 interface RaffleCardFromAddressProps {
   raffleAddress: string;
@@ -110,7 +111,12 @@ export function RaffleCardFromAddress({ raffleAddress, userAddress, showOnlyIfPa
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
           <span className="text-gray-400">Entry Fee</span>
-          <span className="font-medium">{raffle.entryFeeFormatted || `${Number(raffle.entryFee) / 1e18} ETH`}</span>
+          <span className="font-medium">
+            {raffle.entryFeeFormatted || `${Number(raffle.entryFee) / 1e18} ETH`}
+            {(raffle.creatorCommissionBps ?? 0) > 0 && (
+              <span className="ml-2 text-xs text-yellow-400">({raffle.creatorCommissionBps! / 100}% creator fee)</span>
+            )}
+          </span>
         </div>
 
         <div className="flex justify-between">
@@ -129,12 +135,22 @@ export function RaffleCardFromAddress({ raffleAddress, userAddress, showOnlyIfPa
         </div>
       </div>
 
-      <Link
-        href={`/room/${raffleAddress}`}
-        className="block mt-4 text-center py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 rounded-lg transition-colors"
-      >
-        View Details
-      </Link>
+      <div className="flex items-center gap-2 mt-4">
+        <ShareButton
+          raffleId={raffleAddress}
+          title={raffle.title}
+          prizePool={raffle.totalPrizePoolFormatted || `${raffle.prizePool?.toFixed(4) || '0'} ETH`}
+          winner={raffle.winner && raffle.winner !== '0x0000000000000000000000000000000000000000' ? raffle.winner : undefined}
+          mode={raffle.winner && raffle.winner !== '0x0000000000000000000000000000000000000000' ? 'winner' : 'active'}
+          size="sm"
+        />
+        <Link
+          href={`/room/${raffleAddress}`}
+          className="flex-1 block text-center py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 rounded-lg transition-colors"
+        >
+          View Details
+        </Link>
+      </div>
     </Card>
   );
 }
