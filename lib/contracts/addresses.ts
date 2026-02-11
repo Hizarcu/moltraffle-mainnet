@@ -1,37 +1,11 @@
 /**
  * Contract addresses per chain
- * These are placeholders - replace with your deployed contract addresses
  */
 
 export const CONTRACT_ADDRESSES = {
-  // Mainnet
-  1: {
-    RaffleFactory: '0x0000000000000000000000000000000000000000', // Replace with actual address
-  },
-
-  // Sepolia Testnet
-  11155111: {
-    RaffleFactory: '0xA5162a3132341bF0Beca924C0f0809F97bd0550c', // Replace with actual address
-  },
-
   // Base Mainnet
   8453: {
-    RaffleFactory: '0x0000000000000000000000000000000000000000', // Replace with actual address
-  },
-
-  // Base Sepolia Testnet
-  84532: {
-    RaffleFactory: '0x0A7c2E2Eb08e198800C57CD75eA73d6D335B1BDc', // Deployed factory address
-  },
-
-  // Avalanche Mainnet
-  43114: {
-    RaffleFactory: '0x0000000000000000000000000000000000000000', // Replace with actual address
-  },
-
-  // Avalanche Fuji Testnet
-  43113: {
-    RaffleFactory: '0x0000000000000000000000000000000000000000', // Replace with actual address
+    RaffleFactory: '0x480b9708f619AbECE5c7E651A9D16ffb3FFeFaDe', // Set after deployment
   },
 } as const;
 
