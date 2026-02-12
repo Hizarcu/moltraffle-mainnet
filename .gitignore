@@ -30,6 +30,13 @@ yarn-error.log*
 !.env.example
 !.env.local.example
 
+# infrastructure (kept locally on VPS, not in public repo)
+Dockerfile
+docker-compose.yml
+nginx.conf
+deploy.sh
+.dockerignore
+
 # vercel
 .vercel
 
