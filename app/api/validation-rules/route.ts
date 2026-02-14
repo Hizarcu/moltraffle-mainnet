@@ -7,24 +7,26 @@ import { NextResponse } from 'next/server';
  */
 export async function GET() {
   const validationRules = {
-    version: '1.0.0',
-    contractVersion: 'v2.0-security-fixes',
-    lastUpdated: '2026-02-09',
+    version: '2.0.0',
+    contractVersion: 'v3.0-usdc-migration',
+    lastUpdated: '2026-02-14',
     rules: {
       entryFee: {
-        description: 'Entry fee per ticket in ETH',
+        description: 'Entry fee per ticket in USDC (6 decimals)',
         type: 'number',
-        minimum: 0,
-        minimumExclusive: true,
-        maximum: 100,
-        unit: 'ETH',
+        minimum: 0.01,
+        maximum: 10000,
+        unit: 'USDC',
+        rawMinimum: 10000,
+        rawMaximum: 10000000000,
+        rawUnit: 'USDC raw (6 decimals)',
         errors: {
-          tooLow: 'EntryFeeMustBePositive: Entry fee must be greater than 0',
-          tooHigh: 'EntryFeeTooHigh: Entry fee cannot exceed 100 ETH',
+          tooLow: 'EntryFeeTooLow: Entry fee must be at least $0.01 USDC',
+          tooHigh: 'EntryFeeTooHigh: Entry fee cannot exceed $10,000 USDC',
         },
         examples: {
-          valid: [0.01, 0.1, 1, 10, 100],
-          invalid: [0, -1, 101, 150],
+          valid: [0.01, 0.50, 1.00, 10, 100, 10000],
+          invalid: [0, 0.001, 10001, 50000],
         },
       },
       maxParticipants: {
@@ -69,25 +71,36 @@ export async function GET() {
     },
     hints: {
       forHumans: [
-        'Entry fee must be between 0 (exclusive) and 100 ETH',
+        'Entry fee must be between $0.01 and $10,000 USDC',
         'Max participants: use 0 for unlimited, or 2-10,000 for limited',
         'Cannot create a raffle with only 1 participant',
         'Deadline must be in future and within 365 days',
+        'Approve the Factory contract once, then create/join any number of raffles',
       ],
       forAIAgents: [
-        'Validate parameters client-side before submitting transaction to save gas',
-        'All numeric values are checked on-chain and will revert with custom errors',
-        'Use maxParticipants=0 for unlimited, never use maxParticipants=1',
-        'Deadline is Unix timestamp in seconds',
+        'All payments are in USDC (6 decimals). Approve Factory for USDC spending first.',
+        'Creation fee: flat $1 USDC. Platform fee: 2% at claim time.',
+        'Join via Factory.joinRaffle(raffleAddress, ticketCount) — not directly on Raffle.',
+        'Validate parameters client-side before submitting transaction to save gas.',
+        'Use maxParticipants=0 for unlimited, never use maxParticipants=1.',
+        'Deadline is Unix timestamp in seconds.',
       ],
     },
-    gasOptimization: {
+    feeStructure: {
       creationFee: {
-        formula: '1% of total payout',
-        minimum: '0.0004 ETH',
-        maximum: '0.05 ETH',
-        calculation: 'min(max(entryFee * maxParticipants * 0.01, 0.0004), 0.05)',
-        note: 'Unlimited raffles (maxParticipants=0) pay maximum fee of 0.05 ETH',
+        amount: '$1.00 USDC',
+        raw: '1000000',
+        description: 'Flat fee pulled from creator via safeTransferFrom at raffle creation',
+      },
+      platformFee: {
+        bps: 200,
+        percentage: '2%',
+        description: 'Deducted from prize pool at claim time. Sent to platform owner.',
+      },
+      creatorCommission: {
+        range: '0-10%',
+        rangeBps: '0-1000',
+        description: 'Set by creator. Applied to remainder after platform fee.',
       },
     },
   };

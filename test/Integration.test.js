@@ -2,12 +2,13 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { time, loadFixture } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 
-describe("Integration Tests - Full Raffle Lifecycle", function () {
-  const ENTRY_FEE = ethers.parseEther("0.1");
+describe("Integration Tests - Full Raffle Lifecycle (USDC)", function () {
+  const ENTRY_FEE = 10000000; // $10 USDC
   const MAX_PARTICIPANTS = 10;
   const TITLE = "Integration Test Raffle";
   const DESCRIPTION = "Full lifecycle test";
-  const PRIZE_DESCRIPTION = "1 ETH Prize Pool";
+  const PRIZE_DESCRIPTION = "$100 USDC Prize Pool";
+  const CREATION_FEE = 1000000; // $1 USDC
 
   const MOCK_KEY_HASH = "0x" + "0".repeat(64);
   const MOCK_SUBSCRIPTION_ID = BigInt("12345");
@@ -15,65 +16,78 @@ describe("Integration Tests - Full Raffle Lifecycle", function () {
   async function deployFullSystemFixture() {
     const [owner, creator, user1, user2, user3, user4] = await ethers.getSigners();
 
+    // Deploy MockUSDC
+    const MockUSDC = await ethers.getContractFactory("MockUSDC");
+    const usdc = await MockUSDC.deploy();
+
     // Deploy Mock VRF Coordinator
     const MockVRFCoordinator = await ethers.getContractFactory("MockVRFCoordinatorV2Plus");
     const vrfCoordinator = await MockVRFCoordinator.deploy();
 
-    // Deploy RaffleFactory
+    // Deploy RaffleFactory with USDC
     const RaffleFactory = await ethers.getContractFactory("RaffleFactory");
     const factory = await RaffleFactory.deploy(
       await vrfCoordinator.getAddress(),
       MOCK_KEY_HASH,
-      MOCK_SUBSCRIPTION_ID
+      MOCK_SUBSCRIPTION_ID,
+      await usdc.getAddress()
     );
 
-    return { factory, vrfCoordinator, owner, creator, user1, user2, user3, user4 };
+    // Mint USDC and approve factory for all accounts
+    const factoryAddr = await factory.getAddress();
+    const mintAmount = ethers.parseUnits("1000000", 6); // $1M each
+    for (const account of [owner, creator, user1, user2, user3, user4]) {
+      await usdc.mint(account.address, mintAmount);
+      await usdc.connect(account).approve(factoryAddr, ethers.MaxUint256);
+    }
+
+    return { factory, vrfCoordinator, usdc, owner, creator, user1, user2, user3, user4 };
+  }
+
+  // Helper: create raffle and return raffle contract
+  async function createRaffle(factory, creator, opts = {}) {
+    const deadline = opts.deadline || (await time.latest()) + 7 * 24 * 60 * 60;
+    const tx = await factory.connect(creator).createRaffle(
+      opts.title || TITLE,
+      opts.description || DESCRIPTION,
+      opts.prizeDescription || PRIZE_DESCRIPTION,
+      opts.entryFee || ENTRY_FEE,
+      deadline,
+      opts.maxParticipants !== undefined ? opts.maxParticipants : MAX_PARTICIPANTS,
+      opts.commission || 0
+    );
+    const receipt = await tx.wait();
+    const event = receipt.logs.find(log => log.eventName === "RaffleCreated");
+    const raffleAddress = event.args.raffleAddress;
+    const raffle = await ethers.getContractAt("Raffle", raffleAddress);
+    return { raffle, raffleAddress, deadline };
   }
 
   describe("Complete Raffle Flow - Create → Join → Draw → Claim", function () {
     it("Should complete full raffle lifecycle successfully", async function () {
-      const { factory, vrfCoordinator, creator, user1, user2, user3 } = await loadFixture(deployFullSystemFixture);
+      const { factory, vrfCoordinator, usdc, owner, creator, user1, user2, user3 } = await loadFixture(deployFullSystemFixture);
 
-      // Step 1: Create raffle
-      const deadline = (await time.latest()) + 7 * 24 * 60 * 60;
-      const creationFee = await factory.calculateCreationFee(ENTRY_FEE, MAX_PARTICIPANTS);
+      // Step 1: Create raffle ($1 USDC fee)
+      const creatorBefore = await usdc.balanceOf(creator.address);
+      const { raffle, raffleAddress, deadline } = await createRaffle(factory, creator);
+      expect(creatorBefore - await usdc.balanceOf(creator.address)).to.equal(BigInt(CREATION_FEE));
 
-      const createTx = await factory.connect(creator).createRaffle(
-        TITLE,
-        DESCRIPTION,
-        PRIZE_DESCRIPTION,
-        ENTRY_FEE,
-        deadline,
-        MAX_PARTICIPANTS,
-        { value: creationFee }
-      );
-
-      const createReceipt = await createTx.wait();
-      const createEvent = createReceipt.logs.find(log => log.eventName === "RaffleCreated");
-      const raffleAddress = createEvent.args.raffleAddress;
-
-      const Raffle = await ethers.getContractFactory("Raffle");
-      const raffle = Raffle.attach(raffleAddress);
-
-      // Verify raffle created correctly
       expect(await raffle.creator()).to.equal(creator.address);
       expect(await raffle.status()).to.equal(1); // ACTIVE
 
-      // Step 2: Multiple users join
-      await raffle.connect(user1).joinRaffle(3, { value: ENTRY_FEE * BigInt(3) });
-      await raffle.connect(user2).joinRaffle(4, { value: ENTRY_FEE * BigInt(4) });
-      await raffle.connect(user3).joinRaffle(3, { value: ENTRY_FEE * BigInt(3) });
+      // Step 2: Multiple users join via factory
+      await factory.connect(user1).joinRaffle(raffleAddress, 3);
+      await factory.connect(user2).joinRaffle(raffleAddress, 4);
+      await factory.connect(user3).joinRaffle(raffleAddress, 3);
 
-      // Verify participants
       expect(await raffle.getTotalTickets()).to.equal(10);
-      expect(await raffle.getPrizePool()).to.equal(ENTRY_FEE * BigInt(10));
+      expect(await raffle.getPrizePool()).to.equal(BigInt(ENTRY_FEE) * BigInt(10)); // $100
 
       // Step 3: Advance time and draw winner
       await time.increaseTo(deadline + 1);
 
       const drawTx = await raffle.drawWinner();
       const drawReceipt = await drawTx.wait();
-
       expect(await raffle.status()).to.equal(2); // ENDED
 
       // Step 4: VRF fulfills randomness
@@ -82,53 +96,35 @@ describe("Integration Tests - Full Raffle Lifecycle", function () {
 
       await vrfCoordinator.fulfillRandomWords(requestId, await factory.getAddress());
 
-      // Verify winner selected
       const winner = await raffle.winner();
       expect(winner).to.not.equal(ethers.ZeroAddress);
       expect(await raffle.status()).to.equal(3); // DRAWN
 
-      // Step 5: Winner claims prize
+      // Step 5: Winner claims prize (2% platform fee, 0% commission)
       const winnerSigner = await ethers.getSigner(winner);
       const prizePool = await raffle.getPrizePool();
-      const balanceBefore = await ethers.provider.getBalance(winner);
+      const expectedPlatformFee = prizePool * BigInt(200) / BigInt(10000);
+      const expectedWinnerAmount = prizePool - expectedPlatformFee;
 
-      const claimTx = await raffle.connect(winnerSigner).claimPrize();
-      const claimReceipt = await claimTx.wait();
-      const gasUsed = claimReceipt.gasUsed * claimReceipt.gasPrice;
+      const winnerBefore = await usdc.balanceOf(winner);
+      const platformBefore = await usdc.balanceOf(owner.address);
 
-      const balanceAfter = await ethers.provider.getBalance(winner);
+      await raffle.connect(winnerSigner).claimPrize();
 
-      // Verify prize claimed
-      expect(balanceAfter).to.equal(balanceBefore + prizePool - gasUsed);
+      expect(await usdc.balanceOf(winner) - winnerBefore).to.equal(expectedWinnerAmount);
+      expect(await usdc.balanceOf(owner.address) - platformBefore).to.equal(expectedPlatformFee);
       expect(await raffle.getPrizePool()).to.equal(0);
+      expect(await raffle.status()).to.equal(5); // CLAIMED
     });
 
     it("Should complete raffle when max participants reached (no deadline wait)", async function () {
-      const { factory, vrfCoordinator, creator, user1, user2 } = await loadFixture(deployFullSystemFixture);
+      const { factory, vrfCoordinator, usdc, creator, user1, user2 } = await loadFixture(deployFullSystemFixture);
 
-      const deadline = (await time.latest()) + 7 * 24 * 60 * 60;
-      const creationFee = await factory.calculateCreationFee(ENTRY_FEE, MAX_PARTICIPANTS);
-
-      const createTx = await factory.connect(creator).createRaffle(
-        TITLE,
-        DESCRIPTION,
-        PRIZE_DESCRIPTION,
-        ENTRY_FEE,
-        deadline,
-        MAX_PARTICIPANTS,
-        { value: creationFee }
-      );
-
-      const createReceipt = await createTx.wait();
-      const createEvent = createReceipt.logs.find(log => log.eventName === "RaffleCreated");
-      const raffleAddress = createEvent.args.raffleAddress;
-
-      const Raffle = await ethers.getContractFactory("Raffle");
-      const raffle = Raffle.attach(raffleAddress);
+      const { raffle, raffleAddress } = await createRaffle(factory, creator);
 
       // Fill raffle to max
-      await raffle.connect(user1).joinRaffle(6, { value: ENTRY_FEE * BigInt(6) });
-      await raffle.connect(user2).joinRaffle(4, { value: ENTRY_FEE * BigInt(4) });
+      await factory.connect(user1).joinRaffle(raffleAddress, 6);
+      await factory.connect(user2).joinRaffle(raffleAddress, 4);
 
       // Should be able to draw immediately (max reached)
       const drawTx = await raffle.drawWinner();
@@ -139,117 +135,102 @@ describe("Integration Tests - Full Raffle Lifecycle", function () {
 
       await vrfCoordinator.fulfillRandomWords(requestId, await factory.getAddress());
 
+      expect(await raffle.winner()).to.not.equal(ethers.ZeroAddress);
+    });
+  });
+
+  describe("3-Way Split with Creator Commission", function () {
+    it("Should split prize correctly: 2% platform + 10% creator + winner", async function () {
+      const { factory, vrfCoordinator, usdc, owner, creator, user1, user2 } = await loadFixture(deployFullSystemFixture);
+
+      const { raffle, raffleAddress, deadline } = await createRaffle(factory, creator, {
+        commission: 1000, // 10%
+        entryFee: 50000000, // $50 USDC
+        maxParticipants: 4,
+      });
+
+      await factory.connect(user1).joinRaffle(raffleAddress, 2);
+      await factory.connect(user2).joinRaffle(raffleAddress, 2);
+
+      await time.increaseTo(deadline + 1);
+
+      const drawTx = await raffle.drawWinner();
+      const drawReceipt = await drawTx.wait();
+      const requestId = drawReceipt.logs.find(log => log.eventName === "RandomnessRequested").args[0];
+
+      await vrfCoordinator.fulfillRandomWords(requestId, await factory.getAddress());
+
       const winner = await raffle.winner();
-      expect(winner).to.not.equal(ethers.ZeroAddress);
+      const winnerSigner = await ethers.getSigner(winner);
+
+      // Prize pool: 4 * $50 = $200
+      const prizePool = BigInt(50000000) * BigInt(4);
+      const platformFee = prizePool * BigInt(200) / BigInt(10000); // 2% = $4
+      const remainder = prizePool - platformFee; // $196
+      const creatorAmount = remainder * BigInt(1000) / BigInt(10000); // 10% = $19.60
+      const winnerAmount = remainder - creatorAmount; // $176.40
+
+      const winnerBefore = await usdc.balanceOf(winner);
+      const creatorBefore = await usdc.balanceOf(creator.address);
+      const platformBefore = await usdc.balanceOf(owner.address);
+
+      await raffle.connect(winnerSigner).claimPrize();
+
+      expect(await usdc.balanceOf(winner) - winnerBefore).to.equal(winnerAmount);
+      expect(await usdc.balanceOf(creator.address) - creatorBefore).to.equal(creatorAmount);
+      expect(await usdc.balanceOf(owner.address) - platformBefore).to.equal(platformFee);
     });
   });
 
   describe("Complete Cancellation Flow - Create → Join → Cancel → Refund", function () {
     it("Should refund all participants when creator cancels", async function () {
-      const { factory, creator, user1, user2, user3 } = await loadFixture(deployFullSystemFixture);
+      const { factory, usdc, creator, user1, user2, user3 } = await loadFixture(deployFullSystemFixture);
 
-      const deadline = (await time.latest()) + 7 * 24 * 60 * 60;
-      const creationFee = await factory.calculateCreationFee(ENTRY_FEE, MAX_PARTICIPANTS);
-
-      const createTx = await factory.connect(creator).createRaffle(
-        TITLE,
-        DESCRIPTION,
-        PRIZE_DESCRIPTION,
-        ENTRY_FEE,
-        deadline,
-        MAX_PARTICIPANTS,
-        { value: creationFee }
-      );
-
-      const createReceipt = await createTx.wait();
-      const createEvent = createReceipt.logs.find(log => log.eventName === "RaffleCreated");
-      const raffleAddress = createEvent.args.raffleAddress;
-
-      const Raffle = await ethers.getContractFactory("Raffle");
-      const raffle = Raffle.attach(raffleAddress);
-
-      // Track balances before joining
-      const balance1Before = await ethers.provider.getBalance(user1.address);
-      const balance2Before = await ethers.provider.getBalance(user2.address);
-      const balance3Before = await ethers.provider.getBalance(user3.address);
+      const { raffle, raffleAddress } = await createRaffle(factory, creator);
 
       // Users join
-      const tx1 = await raffle.connect(user1).joinRaffle(2, { value: ENTRY_FEE * BigInt(2) });
-      const receipt1 = await tx1.wait();
-      const gas1 = receipt1.gasUsed * receipt1.gasPrice;
-
-      const tx2 = await raffle.connect(user2).joinRaffle(3, { value: ENTRY_FEE * BigInt(3) });
-      const receipt2 = await tx2.wait();
-      const gas2 = receipt2.gasUsed * receipt2.gasPrice;
-
-      const tx3 = await raffle.connect(user3).joinRaffle(1, { value: ENTRY_FEE });
-      const receipt3 = await tx3.wait();
-      const gas3 = receipt3.gasUsed * receipt3.gasPrice;
+      await factory.connect(user1).joinRaffle(raffleAddress, 2);
+      await factory.connect(user2).joinRaffle(raffleAddress, 3);
+      await factory.connect(user3).joinRaffle(raffleAddress, 1);
 
       // Creator cancels
       await raffle.connect(creator).cancelRaffle();
-
-      // Check balances after cancel (should be refunded)
-      const balance1After = await ethers.provider.getBalance(user1.address);
-      const balance2After = await ethers.provider.getBalance(user2.address);
-      const balance3After = await ethers.provider.getBalance(user3.address);
-
-      expect(balance1After).to.equal(balance1Before - gas1);
-      expect(balance2After).to.equal(balance2Before - gas2);
-      expect(balance3After).to.equal(balance3Before - gas3);
-
       expect(await raffle.status()).to.equal(4); // CANCELLED
+
+      // Each user withdraws refund
+      const user1Before = await usdc.balanceOf(user1.address);
+      await raffle.connect(user1).withdrawRefund();
+      expect(await usdc.balanceOf(user1.address) - user1Before).to.equal(BigInt(ENTRY_FEE) * BigInt(2));
+
+      const user2Before = await usdc.balanceOf(user2.address);
+      await raffle.connect(user2).withdrawRefund();
+      expect(await usdc.balanceOf(user2.address) - user2Before).to.equal(BigInt(ENTRY_FEE) * BigInt(3));
+
+      const user3Before = await usdc.balanceOf(user3.address);
+      await raffle.connect(user3).withdrawRefund();
+      expect(await usdc.balanceOf(user3.address) - user3Before).to.equal(BigInt(ENTRY_FEE) * BigInt(1));
+
+      // Raffle should be empty
+      expect(await raffle.getPrizePool()).to.equal(0);
     });
   });
 
   describe("Multiple Concurrent Raffles", function () {
     it("Should handle multiple raffles independently", async function () {
-      const { factory, vrfCoordinator, creator, user1, user2, user3, user4 } = await loadFixture(deployFullSystemFixture);
+      const { factory, usdc, creator, user1, user2, user3, user4 } = await loadFixture(deployFullSystemFixture);
 
-      const deadline = (await time.latest()) + 7 * 24 * 60 * 60;
-      const creationFee = await factory.calculateCreationFee(ENTRY_FEE, MAX_PARTICIPANTS);
-
-      // Create Raffle 1
-      const createTx1 = await factory.connect(creator).createRaffle(
-        "Raffle 1",
-        DESCRIPTION,
-        PRIZE_DESCRIPTION,
-        ENTRY_FEE,
-        deadline,
-        MAX_PARTICIPANTS,
-        { value: creationFee }
-      );
-
-      // Create Raffle 2
-      const createTx2 = await factory.connect(user1).createRaffle(
-        "Raffle 2",
-        DESCRIPTION,
-        PRIZE_DESCRIPTION,
-        ethers.parseEther("0.05"),
-        deadline,
-        20,
-        { value: creationFee }
-      );
-
-      const receipt1 = await createTx1.wait();
-      const receipt2 = await createTx2.wait();
-
-      const event1 = receipt1.logs.find(log => log.eventName === "RaffleCreated");
-      const event2 = receipt2.logs.find(log => log.eventName === "RaffleCreated");
-
-      const raffleAddress1 = event1.args.raffleAddress;
-      const raffleAddress2 = event2.args.raffleAddress;
-
-      const Raffle = await ethers.getContractFactory("Raffle");
-      const raffle1 = Raffle.attach(raffleAddress1);
-      const raffle2 = Raffle.attach(raffleAddress2);
+      const { raffle: raffle1, raffleAddress: addr1, deadline } = await createRaffle(factory, creator, { title: "Raffle 1" });
+      const { raffle: raffle2, raffleAddress: addr2 } = await createRaffle(factory, user1, {
+        title: "Raffle 2",
+        entryFee: 5000000, // $5
+        maxParticipants: 20,
+      });
 
       // Users join different raffles
-      await raffle1.connect(user2).joinRaffle(3, { value: ENTRY_FEE * BigInt(3) });
-      await raffle1.connect(user3).joinRaffle(2, { value: ENTRY_FEE * BigInt(2) });
-
-      await raffle2.connect(user2).joinRaffle(5, { value: ethers.parseEther("0.05") * BigInt(5) });
-      await raffle2.connect(user4).joinRaffle(3, { value: ethers.parseEther("0.05") * BigInt(3) });
+      await factory.connect(user2).joinRaffle(addr1, 3);
+      await factory.connect(user3).joinRaffle(addr1, 2);
+      await factory.connect(user2).joinRaffle(addr2, 5);
+      await factory.connect(user4).joinRaffle(addr2, 3);
 
       // Verify independent state
       expect(await raffle1.getTotalTickets()).to.equal(5);
@@ -271,91 +252,80 @@ describe("Integration Tests - Full Raffle Lifecycle", function () {
     it("Should track factory stats correctly with multiple raffles", async function () {
       const { factory, creator, user1, user2 } = await loadFixture(deployFullSystemFixture);
 
-      const deadline = (await time.latest()) + 7 * 24 * 60 * 60;
-      const creationFee = await factory.calculateCreationFee(ENTRY_FEE, MAX_PARTICIPANTS);
-
-      // Creator makes 2 raffles
-      await factory.connect(creator).createRaffle(
-        "Creator Raffle 1",
-        DESCRIPTION,
-        PRIZE_DESCRIPTION,
-        ENTRY_FEE,
-        deadline,
-        MAX_PARTICIPANTS,
-        { value: creationFee }
-      );
-
-      await factory.connect(creator).createRaffle(
-        "Creator Raffle 2",
-        DESCRIPTION,
-        PRIZE_DESCRIPTION,
-        ENTRY_FEE,
-        deadline,
-        MAX_PARTICIPANTS,
-        { value: creationFee }
-      );
-
-      // User1 makes 1 raffle
-      await factory.connect(user1).createRaffle(
-        "User1 Raffle",
-        DESCRIPTION,
-        PRIZE_DESCRIPTION,
-        ENTRY_FEE,
-        deadline,
-        MAX_PARTICIPANTS,
-        { value: creationFee }
-      );
-
-      // User2 makes 1 raffle
-      await factory.connect(user2).createRaffle(
-        "User2 Raffle",
-        DESCRIPTION,
-        PRIZE_DESCRIPTION,
-        ENTRY_FEE,
-        deadline,
-        MAX_PARTICIPANTS,
-        { value: creationFee }
-      );
+      await createRaffle(factory, creator, { title: "Creator R1" });
+      await createRaffle(factory, creator, { title: "Creator R2" });
+      await createRaffle(factory, user1, { title: "User1 R1" });
+      await createRaffle(factory, user2, { title: "User2 R1" });
 
       expect(await factory.getRaffleCount()).to.equal(4);
       expect(await factory.getCreatorRaffleCount(creator.address)).to.equal(2);
       expect(await factory.getCreatorRaffleCount(user1.address)).to.equal(1);
       expect(await factory.getCreatorRaffleCount(user2.address)).to.equal(1);
+    });
+  });
 
-      const allRaffles = await factory.getAllRaffles();
-      expect(allRaffles.length).to.equal(4);
+  describe("Approve Once, Join Many", function () {
+    it("Should allow user to join multiple raffles with single approval", async function () {
+      const { factory, usdc, creator, user1 } = await loadFixture(deployFullSystemFixture);
 
-      const creatorRaffles = await factory.getRafflesByCreator(creator.address);
-      expect(creatorRaffles.length).to.equal(2);
+      const { raffleAddress: addr1 } = await createRaffle(factory, creator, { title: "R1" });
+      const { raffleAddress: addr2 } = await createRaffle(factory, creator, { title: "R2" });
+      const { raffleAddress: addr3 } = await createRaffle(factory, creator, { title: "R3" });
+
+      // user1 already approved in fixture — join all three
+      await factory.connect(user1).joinRaffle(addr1, 1);
+      await factory.connect(user1).joinRaffle(addr2, 2);
+      await factory.connect(user1).joinRaffle(addr3, 3);
+
+      const raffle1 = await ethers.getContractAt("Raffle", addr1);
+      const raffle2 = await ethers.getContractAt("Raffle", addr2);
+      const raffle3 = await ethers.getContractAt("Raffle", addr3);
+
+      expect(await raffle1.getUserTicketCount(user1.address)).to.equal(1);
+      expect(await raffle2.getUserTicketCount(user1.address)).to.equal(2);
+      expect(await raffle3.getUserTicketCount(user1.address)).to.equal(3);
+    });
+  });
+
+  describe("Platform Fees & Economics", function () {
+    it("Should accumulate creation fees from multiple raffles", async function () {
+      const { factory, usdc, creator, user1, user2 } = await loadFixture(deployFullSystemFixture);
+
+      await createRaffle(factory, creator, { title: "R1" });
+      await createRaffle(factory, user1, { title: "R2" });
+      await createRaffle(factory, user2, { title: "R3" });
+
+      // 3 raffles = $3 in creation fees
+      expect(await factory.getAccumulatedFees()).to.equal(BigInt(CREATION_FEE) * BigInt(3));
+    });
+
+    it("Should distribute creation fees correctly on withdrawal", async function () {
+      const { factory, usdc, owner, creator, user1 } = await loadFixture(deployFullSystemFixture);
+
+      await createRaffle(factory, creator, { title: "R1" });
+      await createRaffle(factory, user1, { title: "R2" });
+
+      const totalFees = BigInt(CREATION_FEE) * BigInt(2);
+      const ownerBefore = await usdc.balanceOf(owner.address);
+
+      await factory.connect(owner).withdrawFees();
+
+      expect(await usdc.balanceOf(owner.address) - ownerBefore).to.equal(totalFees);
+      expect(await factory.getAccumulatedFees()).to.equal(0);
     });
   });
 
   describe("Edge Cases & Stress Tests", function () {
     it("Should handle unlimited raffle with many participants", async function () {
-      const { factory, vrfCoordinator, creator, user1 } = await loadFixture(deployFullSystemFixture);
+      const { factory, vrfCoordinator, usdc, creator, user1 } = await loadFixture(deployFullSystemFixture);
 
-      const deadline = (await time.latest()) + 7 * 24 * 60 * 60;
-      const creationFee = await factory.calculateCreationFee(ENTRY_FEE, 0); // Unlimited
+      const { raffle, raffleAddress, deadline } = await createRaffle(factory, creator, {
+        title: "Unlimited Raffle",
+        maxParticipants: 0,
+        entryFee: 100000, // $0.10
+      });
 
-      const createTx = await factory.connect(creator).createRaffle(
-        "Unlimited Raffle",
-        DESCRIPTION,
-        PRIZE_DESCRIPTION,
-        ENTRY_FEE,
-        deadline,
-        0, // Unlimited
-        { value: creationFee }
-      );
-
-      const receipt = await createTx.wait();
-      const event = receipt.logs.find(log => log.eventName === "RaffleCreated");
-      const raffleAddress = event.args.raffleAddress;
-
-      const Raffle = await ethers.getContractFactory("Raffle");
-      const raffle = Raffle.attach(raffleAddress);
-
-      // Buy many tickets
-      await raffle.connect(user1).joinRaffle(500, { value: ENTRY_FEE * BigInt(500) });
+      await factory.connect(user1).joinRaffle(raffleAddress, 500);
 
       expect(await raffle.getTotalTickets()).to.equal(500);
       expect(await raffle.maxParticipants()).to.equal(0);
@@ -364,181 +334,31 @@ describe("Integration Tests - Full Raffle Lifecycle", function () {
 
       const drawTx = await raffle.drawWinner();
       const drawReceipt = await drawTx.wait();
-
-      const randomnessEvent = drawReceipt.logs.find(log => log.eventName === "RandomnessRequested");
-      const requestId = randomnessEvent.args[0];
+      const requestId = drawReceipt.logs.find(log => log.eventName === "RandomnessRequested").args[0];
 
       await vrfCoordinator.fulfillRandomWords(requestId, await factory.getAddress());
 
-      const winner = await raffle.winner();
-      expect(winner).to.equal(user1.address);
+      expect(await raffle.winner()).to.equal(user1.address); // Only participant
     });
 
-    it("Should handle single participant correctly", async function () {
-      const { factory, vrfCoordinator, creator, user1 } = await loadFixture(deployFullSystemFixture);
+    it("Should handle exact max participants", async function () {
+      const { factory, usdc, creator, user1, user2 } = await loadFixture(deployFullSystemFixture);
 
-      const deadline = (await time.latest()) + 1 * 24 * 60 * 60;
-      const creationFee = await factory.calculateCreationFee(ENTRY_FEE, 10);
+      const { raffle, raffleAddress } = await createRaffle(factory, creator, { maxParticipants: 5 });
 
-      const createTx = await factory.connect(creator).createRaffle(
-        "Single Participant Raffle",
-        DESCRIPTION,
-        PRIZE_DESCRIPTION,
-        ENTRY_FEE,
-        deadline,
-        10,
-        { value: creationFee }
-      );
-
-      const receipt = await createTx.wait();
-      const event = receipt.logs.find(log => log.eventName === "RaffleCreated");
-      const raffleAddress = event.args.raffleAddress;
-
-      const Raffle = await ethers.getContractFactory("Raffle");
-      const raffle = Raffle.attach(raffleAddress);
-
-      // Only one user joins
-      await raffle.connect(user1).joinRaffle(1, { value: ENTRY_FEE });
-
-      await time.increaseTo(deadline + 1);
-
-      const drawTx = await raffle.drawWinner();
-      const drawReceipt = await drawTx.wait();
-
-      const randomnessEvent = drawReceipt.logs.find(log => log.eventName === "RandomnessRequested");
-      const requestId = randomnessEvent.args[0];
-
-      await vrfCoordinator.fulfillRandomWords(requestId, await factory.getAddress());
-
-      const winner = await raffle.winner();
-      expect(winner).to.equal(user1.address); // Only participant must win
-    });
-
-    it("Should handle exact max participants correctly", async function () {
-      const { factory, vrfCoordinator, creator, user1, user2 } = await loadFixture(deployFullSystemFixture);
-
-      const deadline = (await time.latest()) + 7 * 24 * 60 * 60;
-      const creationFee = await factory.calculateCreationFee(ENTRY_FEE, 5);
-
-      const createTx = await factory.connect(creator).createRaffle(
-        "Exact Max Raffle",
-        DESCRIPTION,
-        PRIZE_DESCRIPTION,
-        ENTRY_FEE,
-        deadline,
-        5,
-        { value: creationFee }
-      );
-
-      const receipt = await createTx.wait();
-      const event = receipt.logs.find(log => log.eventName === "RaffleCreated");
-      const raffleAddress = event.args.raffleAddress;
-
-      const Raffle = await ethers.getContractFactory("Raffle");
-      const raffle = Raffle.attach(raffleAddress);
-
-      // Fill to exact max
-      await raffle.connect(user1).joinRaffle(3, { value: ENTRY_FEE * BigInt(3) });
-      await raffle.connect(user2).joinRaffle(2, { value: ENTRY_FEE * BigInt(2) });
+      await factory.connect(user1).joinRaffle(raffleAddress, 3);
+      await factory.connect(user2).joinRaffle(raffleAddress, 2);
 
       expect(await raffle.getTotalTickets()).to.equal(5);
 
-      // Should be full now
+      // Should be full
       await expect(
-        raffle.connect(user1).joinRaffle(1, { value: ENTRY_FEE })
+        factory.connect(user1).joinRaffle(raffleAddress, 1)
       ).to.be.revertedWithCustomError(raffle, "RaffleFull");
 
       // Should draw immediately (max reached)
       await raffle.drawWinner();
-
       expect(await raffle.status()).to.equal(2); // ENDED
-    });
-  });
-
-  describe("Platform Fees & Economics", function () {
-    it("Should accumulate fees from multiple raffles", async function () {
-      const { factory, creator, user1, user2 } = await loadFixture(deployFullSystemFixture);
-
-      const deadline = (await time.latest()) + 7 * 24 * 60 * 60;
-
-      const fee1 = await factory.calculateCreationFee(ENTRY_FEE, 100);
-      const fee2 = await factory.calculateCreationFee(ethers.parseEther("0.5"), 50);
-      const fee3 = await factory.calculateCreationFee(ethers.parseEther("0.01"), 10);
-
-      await factory.connect(creator).createRaffle(
-        "Raffle 1",
-        DESCRIPTION,
-        PRIZE_DESCRIPTION,
-        ENTRY_FEE,
-        deadline,
-        100,
-        { value: fee1 }
-      );
-
-      await factory.connect(user1).createRaffle(
-        "Raffle 2",
-        DESCRIPTION,
-        PRIZE_DESCRIPTION,
-        ethers.parseEther("0.5"),
-        deadline,
-        50,
-        { value: fee2 }
-      );
-
-      await factory.connect(user2).createRaffle(
-        "Raffle 3",
-        DESCRIPTION,
-        PRIZE_DESCRIPTION,
-        ethers.parseEther("0.01"),
-        deadline,
-        10,
-        { value: fee3 }
-      );
-
-      const totalFees = fee1 + fee2 + fee3;
-      const accumulatedFees = await factory.getAccumulatedFees();
-
-      expect(accumulatedFees).to.equal(totalFees);
-    });
-
-    it("Should distribute fees correctly on withdrawal", async function () {
-      const { factory, owner, creator, user1 } = await loadFixture(deployFullSystemFixture);
-
-      const deadline = (await time.latest()) + 7 * 24 * 60 * 60;
-      const creationFee = await factory.calculateCreationFee(ENTRY_FEE, MAX_PARTICIPANTS);
-
-      // Create 3 raffles
-      await factory.connect(creator).createRaffle(
-        "Raffle 1",
-        DESCRIPTION,
-        PRIZE_DESCRIPTION,
-        ENTRY_FEE,
-        deadline,
-        MAX_PARTICIPANTS,
-        { value: creationFee }
-      );
-
-      await factory.connect(user1).createRaffle(
-        "Raffle 2",
-        DESCRIPTION,
-        PRIZE_DESCRIPTION,
-        ENTRY_FEE,
-        deadline,
-        MAX_PARTICIPANTS,
-        { value: creationFee }
-      );
-
-      const totalFees = creationFee * BigInt(2);
-      const ownerBalanceBefore = await ethers.provider.getBalance(owner.address);
-
-      const tx = await factory.connect(owner).withdrawFees();
-      const receipt = await tx.wait();
-      const gasUsed = receipt.gasUsed * receipt.gasPrice;
-
-      const ownerBalanceAfter = await ethers.provider.getBalance(owner.address);
-
-      expect(ownerBalanceAfter).to.equal(ownerBalanceBefore + totalFees - gasUsed);
-      expect(await factory.getAccumulatedFees()).to.equal(0);
     });
   });
 });

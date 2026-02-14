@@ -21,7 +21,7 @@ export interface Raffle {
 
   // Entry details
   entryFee: bigint;
-  entryFeeFormatted: string; // For display (e.g., "0.1 ETH")
+  entryFeeFormatted: string; // For display (e.g., "$1.00 USDC")
   maxParticipants?: number;
   currentParticipants: number;
 
@@ -54,7 +54,7 @@ export interface Raffle {
   // Prize pool
   totalPrizePool: bigint;
   totalPrizePoolFormatted: string;
-  prizePool: number; // Convenience: prize pool in ETH as number
+  prizePool: number; // Convenience: prize pool in USDC as number
 }
 
 /**

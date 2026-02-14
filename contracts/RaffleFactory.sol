@@ -5,13 +5,18 @@ import "./Raffle.sol";
 import "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title RaffleFactory
  * @notice Factory contract to create and manage multiple raffles
- * @dev Deploys new Raffle contracts and handles Chainlink VRF requests for all raffles
+ * @dev Deploys new Raffle contracts and handles Chainlink VRF requests for all raffles.
+ *      Acts as payment router: users approve Factory once, Factory routes USDC to Raffles.
  */
 contract RaffleFactory is VRFConsumerBaseV2Plus, Pausable {
+    using SafeERC20 for IERC20;
+
     // Chainlink VRF Configuration
     bytes32 public immutable keyHash;
     uint256 public immutable subscriptionId;
@@ -21,9 +26,9 @@ contract RaffleFactory is VRFConsumerBaseV2Plus, Pausable {
 
     // Platform fee configuration
     address public immutable platformOwner;
-    uint256 public constant CREATION_FEE_BPS = 100; // 1%
-    uint256 public constant MIN_FEE = 0.0004 ether;
-    uint256 public constant MAX_FEE = 0.05 ether;
+    IERC20 public immutable usdc;
+    uint256 public constant CREATION_FEE = 1_000_000;   // $1 USDC (6 decimals)
+    uint256 public constant PLATFORM_FEE_BPS = 200;     // 2% at claim time
 
     // All deployed raffles
     address[] public allRaffles;
@@ -48,6 +53,13 @@ contract RaffleFactory is VRFConsumerBaseV2Plus, Pausable {
         uint256 creatorCommissionBps
     );
 
+    event RaffleJoined(
+        address indexed raffle,
+        address indexed participant,
+        uint256 ticketCount,
+        uint256 totalCost
+    );
+
     event RandomnessRequested(address indexed raffle, uint256 indexed requestId);
     event RandomnessFulfilled(address indexed raffle, uint256 indexed requestId, uint256 randomWord);
     event FeesWithdrawn(address indexed owner, uint256 amount);
@@ -56,52 +68,41 @@ contract RaffleFactory is VRFConsumerBaseV2Plus, Pausable {
     error InsufficientCreationFee();
     error NotPlatformOwner();
     error WithdrawFailed();
-    error TransferFailed();
     error OnlyRaffleContract();
     error InvalidRequestId();
+    error InvalidRaffle();
+    error InvalidTicketCount();
 
     /**
-     * @notice Initialize factory with Chainlink VRF configuration
+     * @notice Initialize factory with Chainlink VRF configuration and USDC address
      * @param _vrfCoordinator Chainlink VRF Coordinator address
      * @param _keyHash Chainlink VRF Key Hash
      * @param _subscriptionId Chainlink VRF Subscription ID
+     * @param _usdc USDC token address
      */
     constructor(
         address _vrfCoordinator,
         bytes32 _keyHash,
-        uint256 _subscriptionId
+        uint256 _subscriptionId,
+        address _usdc
     ) VRFConsumerBaseV2Plus(_vrfCoordinator) {
         keyHash = _keyHash;
         subscriptionId = _subscriptionId;
         platformOwner = msg.sender;
+        usdc = IERC20(_usdc);
     }
 
     /**
-     * @notice Create a new raffle
+     * @notice Create a new raffle (pulls $1 USDC creation fee)
      * @param _title Raffle title
      * @param _description Raffle description
      * @param _prizeDescription Prize description
-     * @param _entryFee Entry fee in wei
+     * @param _entryFee Entry fee in USDC (6 decimals)
      * @param _deadline Deadline timestamp
      * @param _maxParticipants Maximum participants (0 = unlimited)
+     * @param _creatorCommissionBps Creator commission in basis points (0-1000)
      * @return raffleAddress Address of the newly created raffle
      */
-    /**
-     * @notice Calculate the creation fee for a raffle
-     * @param _entryFee Entry fee per ticket in wei
-     * @param _maxParticipants Maximum total tickets (0 = unlimited)
-     * @return fee The creation fee in wei
-     */
-    function calculateCreationFee(uint256 _entryFee, uint256 _maxParticipants) public pure returns (uint256 fee) {
-        if (_maxParticipants == 0) {
-            return MAX_FEE;
-        }
-        fee = (_entryFee * _maxParticipants * CREATION_FEE_BPS) / 10000;
-        if (fee < MIN_FEE) fee = MIN_FEE;
-        if (fee > MAX_FEE) fee = MAX_FEE;
-        return fee;
-    }
-
     function createRaffle(
         string memory _title,
         string memory _description,
@@ -110,12 +111,11 @@ contract RaffleFactory is VRFConsumerBaseV2Plus, Pausable {
         uint256 _deadline,
         uint256 _maxParticipants,
         uint256 _creatorCommissionBps
-    ) external payable whenNotPaused returns (address raffleAddress) {
-        // Check creation fee
-        uint256 requiredFee = calculateCreationFee(_entryFee, _maxParticipants);
-        if (msg.value < requiredFee) revert InsufficientCreationFee();
+    ) external whenNotPaused returns (address raffleAddress) {
+        // Pull $1 USDC creation fee
+        usdc.safeTransferFrom(msg.sender, address(this), CREATION_FEE);
 
-        // Create new raffle contract (pass creator address and factory address)
+        // Create new raffle contract with USDC address
         Raffle newRaffle = new Raffle(
             _title,
             _description,
@@ -123,9 +123,10 @@ contract RaffleFactory is VRFConsumerBaseV2Plus, Pausable {
             _entryFee,
             _deadline,
             _maxParticipants,
-            msg.sender, // Pass creator address (fixes tx.origin vulnerability)
-            address(this), // Pass factory address
-            _creatorCommissionBps
+            msg.sender,
+            address(this),
+            _creatorCommissionBps,
+            address(usdc)
         );
 
         raffleAddress = address(newRaffle);
@@ -145,14 +146,30 @@ contract RaffleFactory is VRFConsumerBaseV2Plus, Pausable {
             _creatorCommissionBps
         );
 
-        // Refund excess fee
-        uint256 excess = msg.value - requiredFee;
-        if (excess > 0) {
-            (bool success, ) = payable(msg.sender).call{value: excess}("");
-            if (!success) revert TransferFailed();
-        }
-
         return raffleAddress;
+    }
+
+    /**
+     * @notice Join a raffle by purchasing tickets (routes USDC from caller to Raffle)
+     * @param _raffle Address of the raffle to join
+     * @param _ticketCount Number of tickets to purchase
+     * @dev Caller must have approved Factory for sufficient USDC
+     */
+    function joinRaffle(address _raffle, uint256 _ticketCount) external {
+        if (!isRaffle[_raffle]) revert InvalidRaffle();
+        if (_ticketCount == 0) revert InvalidTicketCount();
+
+        // Calculate total cost
+        uint256 entryFee = Raffle(_raffle).entryFee();
+        uint256 totalCost = entryFee * _ticketCount;
+
+        // Pull USDC from caller and send directly to Raffle
+        usdc.safeTransferFrom(msg.sender, _raffle, totalCost);
+
+        // Register tickets on the Raffle
+        Raffle(_raffle).registerTickets(msg.sender, _ticketCount);
+
+        emit RaffleJoined(_raffle, msg.sender, _ticketCount, totalCost);
     }
 
     /**
@@ -236,20 +253,19 @@ contract RaffleFactory is VRFConsumerBaseV2Plus, Pausable {
     }
 
     /**
-     * @notice Withdraw accumulated creation fees (platform owner only)
+     * @notice Withdraw accumulated USDC fees (platform owner only)
      */
     function withdrawFees() external {
         if (msg.sender != platformOwner) revert NotPlatformOwner();
-        uint256 balance = address(this).balance;
-        (bool success, ) = platformOwner.call{value: balance}("");
-        if (!success) revert WithdrawFailed();
+        uint256 balance = usdc.balanceOf(address(this));
+        usdc.safeTransfer(platformOwner, balance);
         emit FeesWithdrawn(platformOwner, balance);
     }
 
     /**
-     * @notice Get accumulated fees in the factory contract
+     * @notice Get accumulated USDC fees in the factory contract
      */
     function getAccumulatedFees() external view returns (uint256) {
-        return address(this).balance;
+        return usdc.balanceOf(address(this));
     }
 }

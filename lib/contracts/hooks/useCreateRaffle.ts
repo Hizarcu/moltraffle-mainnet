@@ -1,16 +1,15 @@
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { parseEther } from 'viem';
+import { parseUnits } from 'viem';
 import { useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { RaffleFactoryABI } from '../abis/RaffleFactory';
 import { getRaffleFactoryAddress } from '../addresses';
-import { calculateCreationFeeWei } from './useCreationFee';
 
 interface CreateRaffleParams {
   title: string;
   description: string;
   prizeDescription: string;
-  entryFee: string; // in ETH
+  entryFee: string; // in USDC (e.g. "1.00")
   deadline: Date;
   maxParticipants: string; // empty string = unlimited (0)
   creatorCommission: string; // "0"-"10" (percent)
@@ -63,13 +62,8 @@ export function useCreateRaffle(options?: UseCreateRaffleOptions) {
     const factoryAddress = getRaffleFactoryAddress(params.chainId);
 
     if (!factoryAddress || factoryAddress === '0x0000000000000000000000000000000000000000') {
-      const networkName = params.chainId === 11155111 ? 'Sepolia' :
-                         params.chainId === 1 ? 'Mainnet' :
-                         params.chainId === 43114 ? 'Avalanche' :
-                         params.chainId === 43113 ? 'Avalanche Fuji' :
-                         params.chainId === 84532 ? 'Base Sepolia' :
-                         `Unknown (${params.chainId})`;
-      toast.error(`RaffleFactory not deployed on ${networkName}. Please switch to Base Sepolia testnet.`);
+      const networkName = params.chainId === 8453 ? 'Base' : `Unknown (${params.chainId})`;
+      toast.error(`RaffleFactory not deployed on ${networkName}. Please switch to Base.`);
       return;
     }
 
@@ -78,9 +72,6 @@ export function useCreateRaffle(options?: UseCreateRaffleOptions) {
     const deadlineTimestamp = BigInt(Math.floor(params.deadline.getTime() / 1000));
     const maxParticipants = params.maxParticipants === '' ? BigInt(0) : BigInt(params.maxParticipants);
     const creatorCommissionBps = BigInt(Number(params.creatorCommission) * 100);
-
-    // Calculate creation fee
-    const creationFee = calculateCreationFeeWei(params.entryFee, params.maxParticipants);
 
     try {
       writeContract({
@@ -91,12 +82,11 @@ export function useCreateRaffle(options?: UseCreateRaffleOptions) {
           params.title,
           params.description,
           params.prizeDescription,
-          parseEther(params.entryFee),
+          parseUnits(params.entryFee, 6),
           deadlineTimestamp,
           maxParticipants,
           creatorCommissionBps,
         ],
-        value: creationFee,
       });
     } catch (err) {
       console.error('Error creating raffle:', err);

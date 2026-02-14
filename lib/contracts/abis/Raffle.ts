@@ -48,6 +48,11 @@ export const RaffleABI = [
         "internalType": "uint256",
         "name": "_creatorCommissionBps",
         "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "_usdc",
+        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
@@ -85,7 +90,7 @@ export const RaffleABI = [
   },
   {
     "inputs": [],
-    "name": "InsufficientPayment",
+    "name": "EntryFeeTooLow",
     "type": "error"
   },
   {
@@ -106,6 +111,11 @@ export const RaffleABI = [
   {
     "inputs": [],
     "name": "InvalidTicketCount",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidUSDCAddress",
     "type": "error"
   },
   {
@@ -179,8 +189,14 @@ export const RaffleABI = [
     "type": "error"
   },
   {
-    "inputs": [],
-    "name": "TransferFailed",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      }
+    ],
+    "name": "SafeERC20FailedOperation",
     "type": "error"
   },
   {
@@ -241,6 +257,25 @@ export const RaffleABI = [
       }
     ],
     "name": "ParticipantJoined",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "platform",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "PlatformFeePaid",
     "type": "event"
   },
   {
@@ -571,19 +606,6 @@ export const RaffleABI = [
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "_ticketCount",
-        "type": "uint256"
-      }
-    ],
-    "name": "joinRaffle",
-    "outputs": [],
-    "stateMutability": "payable",
-    "type": "function"
-  },
-  {
     "inputs": [],
     "name": "maxParticipants",
     "outputs": [
@@ -642,6 +664,24 @@ export const RaffleABI = [
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_participant",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_ticketCount",
+        "type": "uint256"
+      }
+    ],
+    "name": "registerTickets",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "status",
     "outputs": [
@@ -681,6 +721,19 @@ export const RaffleABI = [
         "internalType": "string",
         "name": "",
         "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "usdc",
+    "outputs": [
+      {
+        "internalType": "contract IERC20",
+        "name": "",
+        "type": "address"
       }
     ],
     "stateMutability": "view",

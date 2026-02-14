@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { formatEther, isAddress, encodeFunctionData, parseEther } from 'viem';
+import { formatUnits, isAddress, encodeFunctionData } from 'viem';
 import { publicClient } from '@/lib/contracts/client';
 import { RaffleABI } from '@/lib/contracts/abis/Raffle';
+import { RaffleFactoryABI } from '@/lib/contracts/abis/RaffleFactory';
+import { CONTRACT_ADDRESSES } from '@/lib/contracts/addresses';
+
+const FACTORY_ADDRESS = CONTRACT_ADDRESSES[8453].RaffleFactory;
 
 const STATUS_LABELS: Record<number, string> = {
   0: 'UPCOMING',
@@ -37,7 +41,7 @@ function buildActions(
   const deadlinePassed = now >= deadlineNum;
   const isFull = maxTickets > 0 && currentTickets >= maxTickets;
 
-  // Join action
+  // Join action — now targets Factory.joinRaffle
   const joinAction: Record<string, unknown> = (() => {
     if (statusNum === 4 || statusNum === 5) {
       return { available: false, reason: 'Raffle is cancelled or claimed' };
@@ -54,20 +58,26 @@ function buildActions(
     if (isFull) {
       return { available: false, reason: 'Raffle is full' };
     }
-    const totalValue = entryFee * BigInt(ticketCount);
+    const totalCost = entryFee * BigInt(ticketCount);
+    const totalCostUsdc = parseFloat(formatUnits(totalCost, 6));
     return {
       available: true,
-      to: raffleAddress,
-      function: 'joinRaffle(uint256)',
-      args: { ticketCount },
-      value: totalValue.toString(),
-      valueFormatted: formatEther(totalValue) + ' ETH',
+      to: FACTORY_ADDRESS,
+      function: 'joinRaffle(address,uint256)',
+      args: { raffle: raffleAddress, ticketCount },
+      value: '0',
+      totalCost: totalCost.toString(),
+      totalCostFormatted: `$${totalCostUsdc.toFixed(2)} USDC`,
       calldata: encodeFunctionData({
-        abi: RaffleABI,
+        abi: RaffleFactoryABI,
         functionName: 'joinRaffle',
-        args: [BigInt(ticketCount)],
+        args: [raffleAddress, BigInt(ticketCount)],
       }),
-      note: `Send ${formatEther(totalValue)} ETH for ${ticketCount} ticket(s). Use ?ticketCount=N to change.`,
+      note: `Requires $${totalCostUsdc.toFixed(2)} USDC allowance on Factory. Use ?ticketCount=N to change.`,
+      approval: {
+        note: 'Caller must have approved Factory for USDC spending (one-time)',
+        factoryAddress: FACTORY_ADDRESS,
+      },
     };
   })();
 
@@ -109,7 +119,7 @@ function buildActions(
         abi: RaffleABI,
         functionName: 'claimPrize',
       }),
-      note: 'Only the winner can claim',
+      note: 'Only the winner can claim. Prize split: 2% platform fee, creator commission, remainder to winner.',
     };
   })();
 
@@ -148,7 +158,7 @@ function buildActions(
         abi: RaffleABI,
         functionName: 'withdrawRefund',
       }),
-      note: 'Refunds entryFee * ticketCount for the caller. Only if you have tickets.',
+      note: 'Refunds entryFee * ticketCount in USDC for the caller. Only if you have tickets.',
     };
   })();
 
@@ -223,6 +233,9 @@ export async function GET(
     const randomResultVal = randomResult.status === 'success' ? (randomResult.result as bigint).toString() : '0';
     const winnerIndexVal = winnerIndexResult.status === 'success' ? Number(winnerIndexResult.result as bigint) : 0;
 
+    const entryFeeUsdc = parseFloat(formatUnits(entryFee, 6));
+    const prizePoolUsdc = parseFloat(formatUnits(prizePool, 6));
+
     const actions = buildActions(
       raffleAddress,
       statusNum,
@@ -239,7 +252,7 @@ export async function GET(
       description,
       prizeDescription: prizeDesc,
       entryFee: entryFee.toString(),
-      entryFeeFormatted: formatEther(entryFee) + ' ETH',
+      entryFeeFormatted: `$${entryFeeUsdc.toFixed(2)} USDC`,
       deadline: deadlineNum,
       deadlineISO: new Date(deadlineNum * 1000).toISOString(),
       maxTickets: maxParticipantsNum,
@@ -250,7 +263,7 @@ export async function GET(
       winner: winner === ZERO_ADDRESS ? null : winner,
       creatorCommissionBps: Number(creatorCommissionBps),
       prizePool: prizePool.toString(),
-      prizePoolFormatted: formatEther(prizePool) + ' ETH',
+      prizePoolFormatted: `$${prizePoolUsdc.toFixed(2)} USDC`,
       participants,
       vrfRequestId,
       randomResult: randomResultVal,

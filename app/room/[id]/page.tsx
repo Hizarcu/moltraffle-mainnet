@@ -218,7 +218,7 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
             <ShareButton
               raffleId={id}
               title={raffle.title}
-              prizePool={raffle.totalPrizePoolFormatted || `${raffle.prizePool.toFixed(4)} ETH`}
+              prizePool={raffle.totalPrizePoolFormatted || `$${raffle.prizePool.toFixed(2)} USDC`}
               winner={hasWinner ? raffle.winner : undefined}
               mode={isDrawn ? 'winner' : 'active'}
             />
@@ -235,7 +235,7 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
               <h2 className="text-2xl font-semibold mb-4">Prize Pool</h2>
               <div className="p-6 bg-gradient-primary/10 rounded-lg border border-primary-purple/20">
                 <div className="text-3xl font-bold text-gradient mb-2">
-                  {raffle.totalPrizePoolFormatted || `${raffle.prizePool.toFixed(4)} ETH`}
+                  {raffle.totalPrizePoolFormatted || `$${raffle.prizePool.toFixed(2)} USDC`}
                 </div>
                 <p className="text-text-secondary text-sm">
                   {raffle.maxParticipants && raffle.maxParticipants > 0 ? (
@@ -257,7 +257,7 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
                     <div className="flex justify-between text-sm">
                       <span className="text-yellow-400">Creator earns {(raffle.creatorCommissionBps! / 100)}%</span>
                       <span className="text-text-secondary">
-                        Winner receives {(raffle.prizePool * (1 - raffle.creatorCommissionBps! / 10000)).toFixed(4)} ETH
+                        Winner receives ${(raffle.prizePool * (1 - raffle.creatorCommissionBps! / 10000)).toFixed(2)} USDC
                       </span>
                     </div>
                   </div>
@@ -299,7 +299,7 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
                 winnerIndex={raffle.winnerIndex || 0}
                 randomNumber={raffle.randomNumber ? String(raffle.randomNumber) : '0'}
                 vrfRequestId={raffle.vrfRequestId}
-                prizePool={raffle.totalPrizePoolFormatted || `${raffle.prizePool.toFixed(4)} ETH`}
+                prizePool={raffle.totalPrizePoolFormatted || `$${raffle.prizePool.toFixed(2)} USDC`}
                 totalParticipants={raffle.participants.length}
                 raffleAddress={raffle.contractAddress}
                 raffleId={id}

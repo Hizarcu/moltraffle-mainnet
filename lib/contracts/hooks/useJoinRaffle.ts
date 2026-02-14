@@ -1,18 +1,19 @@
 import { useState, useEffect } from 'react';
-import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { RaffleABI } from '../abis/Raffle';
+import { useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
+import { RaffleFactoryABI } from '../abis/RaffleFactory';
+import { getRaffleFactoryAddress } from '../addresses';
 import toast from 'react-hot-toast';
 
 interface UseJoinRaffleParams {
   raffleAddress: string;
-  entryFee: bigint;
   ticketCount: number;
   onSuccess?: () => void;
 }
 
-export function useJoinRaffle({ raffleAddress, entryFee, ticketCount, onSuccess }: UseJoinRaffleParams) {
+export function useJoinRaffle({ raffleAddress, ticketCount, onSuccess }: UseJoinRaffleParams) {
   const [isJoining, setIsJoining] = useState(false);
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
+  const chainId = useChainId();
 
   const { writeContractAsync, isPending } = useWriteContract();
 
@@ -21,35 +22,31 @@ export function useJoinRaffle({ raffleAddress, entryFee, ticketCount, onSuccess 
   });
 
   const joinRaffle = async () => {
+    const factoryAddress = getRaffleFactoryAddress(chainId);
+    if (!factoryAddress) {
+      toast.error('Factory not deployed on this chain', { id: 'join-raffle' });
+      return;
+    }
+
     try {
       setIsJoining(true);
 
-      // Show pending toast
       toast.loading('Confirm transaction in your wallet...', { id: 'join-raffle' });
 
-      console.log('=== Calling joinRaffle ===');
-      console.log('Raffle Address:', raffleAddress);
-      console.log('Ticket Count:', ticketCount);
-      console.log('Total Value (Wei):', entryFee.toString());
-
-      // Call contract with ticketCount parameter
+      // Call Factory.joinRaffle(raffleAddress, ticketCount)
       const hash = await writeContractAsync({
-        address: raffleAddress as `0x${string}`,
-        abi: RaffleABI,
+        address: factoryAddress as `0x${string}`,
+        abi: RaffleFactoryABI,
         functionName: 'joinRaffle',
-        args: [BigInt(ticketCount)],
-        value: entryFee,
+        args: [raffleAddress as `0x${string}`, BigInt(ticketCount)],
       });
 
-      console.log('Transaction hash:', hash);
       setTxHash(hash);
       toast.loading('Transaction pending...', { id: 'join-raffle' });
 
     } catch (err: any) {
       console.error('Join raffle error:', err);
-      console.error('Error details:', JSON.stringify(err, null, 2));
 
-      // Extract the most useful error message
       let errorMessage = 'Failed to join raffle';
       if (err.shortMessage) {
         errorMessage = err.shortMessage;
@@ -57,17 +54,16 @@ export function useJoinRaffle({ raffleAddress, entryFee, ticketCount, onSuccess 
         errorMessage = err.message;
       }
 
-      // Check for common contract errors
       if (errorMessage.includes('RaffleNotActive')) {
-        errorMessage = 'Raffle is not active (contract bug - status shows ENDED)';
-      } else if (errorMessage.includes('AlreadyJoined')) {
-        errorMessage = 'You have already joined this raffle';
+        errorMessage = 'Raffle is not active';
       } else if (errorMessage.includes('RaffleFull')) {
         errorMessage = 'Raffle is full';
-      } else if (errorMessage.includes('InsufficientEntryFee')) {
-        errorMessage = 'Insufficient entry fee sent';
+      } else if (errorMessage.includes('InvalidRaffle')) {
+        errorMessage = 'Invalid raffle address';
       } else if (errorMessage.includes('User rejected')) {
         errorMessage = 'Transaction cancelled by user';
+      } else if (errorMessage.includes('insufficient allowance') || errorMessage.includes('SafeERC20')) {
+        errorMessage = 'Insufficient USDC allowance. Please approve USDC first.';
       }
 
       toast.error(errorMessage, { id: 'join-raffle' });

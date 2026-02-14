@@ -65,13 +65,32 @@ async function main() {
   console.log("   Subscription ID:", SUBSCRIPTION_ID);
   console.log("");
 
+  // USDC Address Configuration
+  let USDC_ADDRESS;
+  if (chainId === 8453) {
+    // Base Mainnet USDC
+    USDC_ADDRESS = process.env.USDC_ADDRESS || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+  } else {
+    // Testnet — use env or abort
+    USDC_ADDRESS = process.env.USDC_ADDRESS;
+    if (!USDC_ADDRESS) {
+      console.log("❌ ERROR: USDC_ADDRESS not set for testnet deployment!");
+      console.log("   Deploy a MockUSDC first and set USDC_ADDRESS in .env");
+      process.exit(1);
+    }
+  }
+
+  console.log("💵 USDC Address:", USDC_ADDRESS);
+  console.log("");
+
   // Deploy RaffleFactory
   console.log("📦 Deploying RaffleFactory...");
   const RaffleFactory = await ethers.getContractFactory("RaffleFactory");
   const raffleFactory = await RaffleFactory.deploy(
     VRF_COORDINATOR,
     KEY_HASH,
-    SUBSCRIPTION_ID
+    SUBSCRIPTION_ID,
+    USDC_ADDRESS
   );
 
   await raffleFactory.waitForDeployment();
@@ -92,6 +111,7 @@ async function main() {
         vrfCoordinator: VRF_COORDINATOR,
         keyHash: KEY_HASH,
         subscriptionId: SUBSCRIPTION_ID,
+        usdcAddress: USDC_ADDRESS,
       },
     },
   };
@@ -131,9 +151,9 @@ async function main() {
     console.log("      Go to https://vrf.chain.link/");
     console.log("      Add consumer:", factoryAddress);
     console.log("\n   2. Verify contract on BaseScan:");
-    console.log(`      npx hardhat verify --network base ${factoryAddress} "${VRF_COORDINATOR}" "${KEY_HASH}" ${SUBSCRIPTION_ID}`);
+    console.log(`      npx hardhat verify --network base ${factoryAddress} "${VRF_COORDINATOR}" "${KEY_HASH}" ${SUBSCRIPTION_ID} "${USDC_ADDRESS}"`);
     console.log("\n   3. Test with small amounts first:");
-    console.log("      Create a test raffle with 0.001 ETH entry fee");
+    console.log("      Create a test raffle with $1 USDC entry fee");
     console.log("      Verify draw winner works correctly");
     console.log("\n   4. Update frontend:");
     console.log("      - Verify lib/contracts/addresses.ts has correct mainnet address");
@@ -150,7 +170,7 @@ async function main() {
     console.log("   1. Go to https://vrf.chain.link/");
     console.log("   2. Add this contract as a consumer:", factoryAddress);
     console.log("   3. Verify contract (optional):");
-    console.log(`      npx hardhat verify --network baseSepolia ${factoryAddress} "${VRF_COORDINATOR}" "${KEY_HASH}" ${SUBSCRIPTION_ID}`);
+    console.log(`      npx hardhat verify --network baseSepolia ${factoryAddress} "${VRF_COORDINATOR}" "${KEY_HASH}" ${SUBSCRIPTION_ID} "${USDC_ADDRESS}"`);
   }
 
   console.log("\n✨ Deployment info saved to:", deploymentPath);

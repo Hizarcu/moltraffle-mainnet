@@ -5,9 +5,12 @@
 export const CONTRACT_ADDRESSES = {
   // Base Mainnet
   8453: {
-    RaffleFactory: '0xd921A03dd1d78cD030FC769feB944f018c00F1a7', // Set after deployment
+    RaffleFactory: '0x198C3AbA1d0B2eC0BBf2Be986F3070074915E7f1', // Set after deployment
+    USDC: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
   },
 } as const;
+
+export const USDC_DECIMALS = 6;
 
 export type SupportedChainId = keyof typeof CONTRACT_ADDRESSES;
 
@@ -17,6 +20,14 @@ export type SupportedChainId = keyof typeof CONTRACT_ADDRESSES;
 export function getRaffleFactoryAddress(chainId: number): string | undefined {
   const addresses = CONTRACT_ADDRESSES[chainId as SupportedChainId];
   return addresses?.RaffleFactory;
+}
+
+/**
+ * Get USDC address for a given chain
+ */
+export function getUSDCAddress(chainId: number): string | undefined {
+  const addresses = CONTRACT_ADDRESSES[chainId as SupportedChainId];
+  return addresses?.USDC;
 }
 
 /**

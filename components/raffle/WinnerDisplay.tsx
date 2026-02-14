@@ -55,7 +55,7 @@ export function WinnerDisplay({
             <ShareButton
               raffleId={raffleId}
               title={raffleTitle || 'Raffle'}
-              prizePool={typeof prizePool === 'string' ? prizePool : `${prizePool} ETH`}
+              prizePool={typeof prizePool === 'string' ? prizePool : `$${prizePool} USDC`}
               winner={winner}
               mode="winner"
             />
@@ -77,7 +77,7 @@ export function WinnerDisplay({
         </div>
         <div className="mt-4 text-center">
           <div className="text-3xl font-bold text-green-400">
-            {typeof prizePool === 'string' ? prizePool : `${prizePool} ETH`}
+            {typeof prizePool === 'string' ? prizePool : `$${prizePool} USDC`}
           </div>
           <div className="text-sm text-gray-400 mt-1">Prize Amount</div>
         </div>

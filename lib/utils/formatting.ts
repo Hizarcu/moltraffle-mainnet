@@ -1,4 +1,4 @@
-import { formatEther, formatUnits } from 'viem';
+import { formatUnits } from 'viem';
 import { formatDistanceToNow, format, isPast, isFuture } from 'date-fns';
 
 /**
@@ -11,22 +11,17 @@ export function formatAddress(address: string, chars = 4): string {
 }
 
 /**
- * Format bigint ETH amount to readable string
- * @example formatEthAmount(1000000000000000000n) => "1.0 ETH"
+ * Format bigint USDC amount to readable string
+ * @example formatUsdcAmount(1000000n) => "$1.00 USDC"
  */
-export function formatEthAmount(amount: bigint, decimals = 18, symbol = 'ETH'): string {
+export function formatUsdcAmount(amount: bigint, decimals = 6): string {
   const formatted = formatUnits(amount, decimals);
   const num = parseFloat(formatted);
 
-  // Format with appropriate decimal places
   if (num >= 1000) {
-    return `${num.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${symbol}`;
-  } else if (num >= 1) {
-    return `${num.toFixed(4)} ${symbol}`;
-  } else if (num >= 0.0001) {
-    return `${num.toFixed(6)} ${symbol}`;
+    return `$${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC`;
   } else {
-    return `${num.toExponential(2)} ${symbol}`;
+    return `$${num.toFixed(2)} USDC`;
   }
 }
 

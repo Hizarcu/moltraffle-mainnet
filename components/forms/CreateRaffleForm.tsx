@@ -46,8 +46,8 @@ export function CreateRaffleForm() {
 
   const formValues = watch();
 
-  // Calculate creation fee
-  const creationFee = useCreationFee(formValues.entryFee, formValues.maxParticipants);
+  // Flat creation fee
+  const creationFee = useCreationFee();
 
   const nextStep = async () => {
     let fieldsToValidate: (keyof CreateRaffleFormData)[] = [];
@@ -121,7 +121,7 @@ export function CreateRaffleForm() {
                 <input
                   {...register('title')}
                   type="text"
-                  placeholder="e.g., 0.5 ETH Raffle"
+                  placeholder="e.g., $50 USDC Raffle"
                   className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
                 />
                 {errors.title && (
@@ -151,25 +151,25 @@ export function CreateRaffleForm() {
 
               {/* Validation Rules Card - For AI Agents & Users */}
               <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                <p className="text-sm font-semibold text-blue-400 mb-2">📋 Contract Validation Rules</p>
+                <p className="text-sm font-semibold text-blue-400 mb-2">Contract Validation Rules</p>
                 <ul className="text-xs text-gray-300 space-y-1">
-                  <li>• <strong>Entry Fee:</strong> Must be &gt; 0 ETH and ≤ 100 ETH</li>
-                  <li>• <strong>Max Participants:</strong> 0 (unlimited) OR 2-10,000 (limited). Cannot be 1.</li>
-                  <li>• <strong>Deadline:</strong> Must be in future and within 365 days</li>
-                  <li className="text-yellow-400 mt-2">⚠️ Values outside these limits will be rejected by smart contract</li>
+                  <li>* <strong>Entry Fee:</strong> Must be &gt; 0 USDC and &le; 100,000 USDC</li>
+                  <li>* <strong>Max Participants:</strong> 0 (unlimited) OR 2-10,000 (limited). Cannot be 1.</li>
+                  <li>* <strong>Deadline:</strong> Must be in future and within 365 days</li>
+                  <li className="text-yellow-400 mt-2">Values outside these limits will be rejected by smart contract</li>
                 </ul>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Entry Fee (ETH)</label>
+                <label className="block text-sm font-medium mb-2">Entry Fee (USDC)</label>
                 <input
                   {...register('entryFee')}
                   type="text"
-                  placeholder="0.01"
+                  placeholder="1.00"
                   className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
                 />
                 <p className="text-gray-500 text-xs mt-1">
-                  ℹ️ Must be greater than 0 and less than or equal to 100 ETH
+                  Must be greater than 0 USDC
                 </p>
                 {errors.entryFee && (
                   <p className="text-red-400 text-sm mt-1">{errors.entryFee.message}</p>
@@ -187,7 +187,7 @@ export function CreateRaffleForm() {
                   className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
                 />
                 <p className="text-gray-500 text-xs mt-1">
-                  ℹ️ 0 (or empty) = unlimited, 2-10,000 = limited. Cannot use 1 participant.
+                  0 (or empty) = unlimited, 2-10,000 = limited. Cannot use 1 participant.
                 </p>
                 {errors.maxParticipants && (
                   <p className="text-red-400 text-sm mt-1">{errors.maxParticipants.message}</p>
@@ -217,7 +217,7 @@ export function CreateRaffleForm() {
                     <p className="text-sm text-yellow-400">
                       You earn {formValues.creatorCommission}% of the prize pool
                       {formValues.maxParticipants && formValues.maxParticipants !== '' ? (
-                        <span className="text-gray-400"> — up to {((Number(formValues.entryFee) * Number(formValues.maxParticipants) * Number(formValues.creatorCommission)) / 100).toFixed(4)} ETH</span>
+                        <span className="text-gray-400"> — up to ${((Number(formValues.entryFee) * Number(formValues.maxParticipants) * Number(formValues.creatorCommission)) / 100).toFixed(2)} USDC</span>
                       ) : null}
                     </p>
                   </div>
@@ -233,16 +233,16 @@ export function CreateRaffleForm() {
                   <p className="text-sm text-gray-400 mb-1">Prize Pool Preview</p>
                   {formValues.maxParticipants && formValues.maxParticipants !== '' ? (
                     <p className="font-bold text-lg text-gradient">
-                      {(Number(formValues.entryFee) * Number(formValues.maxParticipants)).toFixed(4)} ETH
+                      ${(Number(formValues.entryFee) * Number(formValues.maxParticipants)).toFixed(2)} USDC
                       <span className="text-sm font-normal text-gray-400 ml-2">
-                        (max {formValues.maxParticipants} x {formValues.entryFee} ETH)
+                        (max {formValues.maxParticipants} x ${formValues.entryFee} USDC)
                       </span>
                     </p>
                   ) : (
                     <p className="font-bold text-lg text-gradient">
                       Dynamic
                       <span className="text-sm font-normal text-gray-400 ml-2">
-                        (Participants x {formValues.entryFee} ETH)
+                        (Participants x ${formValues.entryFee} USDC)
                       </span>
                     </p>
                   )}
@@ -250,17 +250,15 @@ export function CreateRaffleForm() {
               )}
 
               {/* Creation Fee Preview */}
-              {creationFee !== null && (
-                <div className="p-4 bg-gray-800/50 border border-gray-700 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-sm text-gray-400">Creation Fee</p>
-                      <p className="text-xs text-gray-500">1% of total payout, capped 0.0004–0.05 ETH</p>
-                    </div>
-                    <p className="font-bold text-lg">{creationFee} ETH</p>
+              <div className="p-4 bg-gray-800/50 border border-gray-700 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm text-gray-400">Creation Fee</p>
+                    <p className="text-xs text-gray-500">$1.00 USDC (flat fee)</p>
                   </div>
+                  <p className="font-bold text-lg">{creationFee}</p>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
@@ -278,7 +276,7 @@ export function CreateRaffleForm() {
                   className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
                 />
                 <p className="text-gray-500 text-xs mt-1">
-                  ℹ️ Deadline must be in the future and within 365 days from now
+                  Deadline must be in the future and within 365 days from now
                 </p>
                 {errors.deadline && (
                   <p className="text-red-400 text-sm mt-1">{errors.deadline.message}</p>
@@ -294,22 +292,18 @@ export function CreateRaffleForm() {
 
               {/* Validation Status Check */}
               {(formValues.maxParticipants === '1' ||
-                Number(formValues.maxParticipants) > 10000 ||
-                Number(formValues.entryFee) > 100) && (
+                Number(formValues.maxParticipants) > 10000) && (
                 <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-                  <p className="text-sm font-semibold text-red-400 mb-2">❌ Validation Errors Detected</p>
+                  <p className="text-sm font-semibold text-red-400 mb-2">Validation Errors Detected</p>
                   <ul className="text-xs text-red-300 space-y-1">
                     {formValues.maxParticipants === '1' && (
-                      <li>• Max Participants cannot be 1 (use 0 for unlimited or 2+)</li>
+                      <li>* Max Participants cannot be 1 (use 0 for unlimited or 2+)</li>
                     )}
                     {Number(formValues.maxParticipants) > 10000 && (
-                      <li>• Max Participants exceeds 10,000 limit</li>
-                    )}
-                    {Number(formValues.entryFee) > 100 && (
-                      <li>• Entry Fee exceeds 100 ETH limit</li>
+                      <li>* Max Participants exceeds 10,000 limit</li>
                     )}
                   </ul>
-                  <p className="text-xs text-yellow-400 mt-2">⚠️ Transaction will fail. Please go back and fix these issues.</p>
+                  <p className="text-xs text-yellow-400 mt-2">Transaction will fail. Please go back and fix these issues.</p>
                 </div>
               )}
 
@@ -327,7 +321,7 @@ export function CreateRaffleForm() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-400">Entry Fee</p>
-                    <p className="font-medium">{formValues.entryFee} ETH</p>
+                    <p className="font-medium">${formValues.entryFee} USDC</p>
                   </div>
 
                   <div>
@@ -343,16 +337,16 @@ export function CreateRaffleForm() {
                   <p className="text-sm text-gray-400 mb-1">Prize Pool</p>
                   {formValues.maxParticipants && formValues.maxParticipants !== '' ? (
                     <p className="font-bold text-lg text-gradient">
-                      {(Number(formValues.entryFee || 0) * Number(formValues.maxParticipants)).toFixed(4)} ETH
+                      ${(Number(formValues.entryFee || 0) * Number(formValues.maxParticipants)).toFixed(2)} USDC
                       <span className="text-sm font-normal text-gray-400 ml-2">
-                        ({formValues.maxParticipants} x {formValues.entryFee} ETH)
+                        ({formValues.maxParticipants} x ${formValues.entryFee} USDC)
                       </span>
                     </p>
                   ) : (
                     <p className="font-bold text-lg text-gradient">
                       Dynamic
                       <span className="text-sm font-normal text-gray-400 ml-2">
-                        (Participants x {formValues.entryFee} ETH)
+                        (Participants x ${formValues.entryFee} USDC)
                       </span>
                     </p>
                   )}
@@ -370,7 +364,7 @@ export function CreateRaffleForm() {
                         <p className="font-bold text-yellow-400">{formValues.creatorCommission}%</p>
                         {formValues.maxParticipants && formValues.maxParticipants !== '' && (
                           <p className="text-xs text-gray-400">
-                            up to {((Number(formValues.entryFee || 0) * Number(formValues.maxParticipants) * Number(formValues.creatorCommission)) / 100).toFixed(4)} ETH
+                            up to ${((Number(formValues.entryFee || 0) * Number(formValues.maxParticipants) * Number(formValues.creatorCommission)) / 100).toFixed(2)} USDC
                           </p>
                         )}
                       </div>
@@ -379,14 +373,12 @@ export function CreateRaffleForm() {
                 )}
 
                 {/* Creation Fee */}
-                {creationFee !== null && (
-                  <div className="p-4 bg-gray-800/50 border border-gray-700 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <p className="text-sm text-gray-400">Creation Fee (paid on submit)</p>
-                      <p className="font-bold">{creationFee} ETH</p>
-                    </div>
+                <div className="p-4 bg-gray-800/50 border border-gray-700 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-gray-400">Creation Fee (paid on submit)</p>
+                    <p className="font-bold">{creationFee}</p>
                   </div>
-                )}
+                </div>
 
                 <div>
                   <p className="text-sm text-gray-400">Deadline</p>

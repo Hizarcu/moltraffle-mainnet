@@ -18,6 +18,11 @@ export const RaffleFactoryABI = [
         "internalType": "uint256",
         "name": "_subscriptionId",
         "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "_usdc",
+        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
@@ -40,7 +45,17 @@ export const RaffleFactoryABI = [
   },
   {
     "inputs": [],
+    "name": "InvalidRaffle",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidRequestId",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidTicketCount",
     "type": "error"
   },
   {
@@ -91,8 +106,14 @@ export const RaffleFactoryABI = [
     "type": "error"
   },
   {
-    "inputs": [],
-    "name": "TransferFailed",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      }
+    ],
+    "name": "SafeERC20FailedOperation",
     "type": "error"
   },
   {
@@ -248,6 +269,37 @@ export const RaffleFactoryABI = [
       },
       {
         "indexed": true,
+        "internalType": "address",
+        "name": "participant",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "ticketCount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "totalCost",
+        "type": "uint256"
+      }
+    ],
+    "name": "RaffleJoined",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "raffle",
+        "type": "address"
+      },
+      {
+        "indexed": true,
         "internalType": "uint256",
         "name": "requestId",
         "type": "uint256"
@@ -296,7 +348,7 @@ export const RaffleFactoryABI = [
   },
   {
     "inputs": [],
-    "name": "CREATION_FEE_BPS",
+    "name": "CREATION_FEE",
     "outputs": [
       {
         "internalType": "uint256",
@@ -309,20 +361,7 @@ export const RaffleFactoryABI = [
   },
   {
     "inputs": [],
-    "name": "MAX_FEE",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "MIN_FEE",
+    "name": "PLATFORM_FEE_BPS",
     "outputs": [
       {
         "internalType": "uint256",
@@ -357,30 +396,6 @@ export const RaffleFactoryABI = [
       }
     ],
     "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "_entryFee",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_maxParticipants",
-        "type": "uint256"
-      }
-    ],
-    "name": "calculateCreationFee",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "fee",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "pure",
     "type": "function"
   },
   {
@@ -429,7 +444,7 @@ export const RaffleFactoryABI = [
         "type": "address"
       }
     ],
-    "stateMutability": "payable",
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -526,6 +541,24 @@ export const RaffleFactoryABI = [
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_raffle",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_ticketCount",
+        "type": "uint256"
+      }
+    ],
+    "name": "joinRaffle",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -718,6 +751,19 @@ export const RaffleFactoryABI = [
     "name": "unpause",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "usdc",
+    "outputs": [
+      {
+        "internalType": "contract IERC20",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {

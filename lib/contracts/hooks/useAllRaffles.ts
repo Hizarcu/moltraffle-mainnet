@@ -4,7 +4,7 @@ import { getRaffleFactoryAddress } from '../addresses';
 import { RaffleFactoryABI } from '../abis/RaffleFactory';
 import { RaffleABI } from '../abis/Raffle';
 import { Raffle, RaffleStatus } from '@/lib/types/raffle';
-import { formatEther } from 'viem';
+import { formatUnits } from 'viem';
 
 /**
  * Hook to fetch all raffles from the blockchain
@@ -160,10 +160,10 @@ export function useRaffleDetails(raffleAddress: string) {
       actualStatus = 0; // ACTIVE - deadline in future
     }
 
-    const entryFeeWei = (raffleInfo as any)[2] as bigint;
-    const entryFeeEth = parseFloat(formatEther(entryFeeWei));
+    const entryFeeRaw = (raffleInfo as any)[2] as bigint;
+    const entryFeeUsdc = parseFloat(formatUnits(entryFeeRaw, 6));
     const participantCount = Number((raffleInfo as any)[5]);
-    const prizePoolEth = entryFeeEth * participantCount;
+    const prizePoolUsdc = entryFeeUsdc * participantCount;
     const commissionBps = Number((raffleInfo as any)[9] || 0);
 
     return {
@@ -172,8 +172,8 @@ export function useRaffleDetails(raffleAddress: string) {
       title: (raffleInfo as any)[0],
       description: (raffleInfo as any)[1],
       prizeDescription: prizeDescription as string || '',
-      entryFee: entryFeeWei,
-      entryFeeFormatted: `${entryFeeEth} ETH`,
+      entryFee: entryFeeRaw,
+      entryFeeFormatted: `$${entryFeeUsdc.toFixed(2)} USDC`,
       deadline: deadlineDate,
       maxParticipants: Number((raffleInfo as any)[4]),
       currentParticipants: participantCount,
@@ -181,15 +181,15 @@ export function useRaffleDetails(raffleAddress: string) {
       creatorCommissionBps: commissionBps,
       status: actualStatus as unknown as RaffleStatus,
       participants: (participants as string[]) || [],
-      totalPrizePool: BigInt(Math.floor(prizePoolEth * 1e18)),
-      totalPrizePoolFormatted: `${prizePoolEth.toFixed(4)} ETH`,
-      prizePool: prizePoolEth, // Keep for backward compatibility
+      totalPrizePool: BigInt(Math.floor(prizePoolUsdc * 1e6)),
+      totalPrizePoolFormatted: `$${prizePoolUsdc.toFixed(2)} USDC`,
+      prizePool: prizePoolUsdc,
       createdAt: new Date(),
       winner: winner as string | undefined,
       vrfRequestId: vrfRequestId ? String(vrfRequestId) : undefined,
       randomNumber: randomResult ? BigInt(String(randomResult)) : undefined,
       winnerIndex: winnerIndex ? Number(winnerIndex) : undefined,
-      chainId: 84532, // Base Sepolia
+      chainId: 8453, // Base Mainnet
     };
   })() : null;
 

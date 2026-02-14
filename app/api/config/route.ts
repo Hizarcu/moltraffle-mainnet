@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { RaffleFactoryABI } from '@/lib/contracts/abis/RaffleFactory';
 import { RaffleABI } from '@/lib/contracts/abis/Raffle';
+import { USDCABI } from '@/lib/contracts/abis/USDC';
 import { CONTRACT_ADDRESSES } from '@/lib/contracts/addresses';
 
 const corsHeaders = {
@@ -18,11 +19,16 @@ export async function GET() {
     chainId: 8453,
     chainName: 'Base',
     factoryAddress: CONTRACT_ADDRESSES[8453].RaffleFactory,
+    usdcAddress: CONTRACT_ADDRESSES[8453].USDC,
     rpcUrl: 'https://mainnet.base.org',
     explorerUrl: 'https://basescan.org',
+    unit: 'USDC',
+    usdcDecimals: 6,
+    platformFeeBps: 200,
     abis: {
       RaffleFactory: RaffleFactoryABI,
       Raffle: RaffleABI,
+      USDC: USDCABI,
     },
     statusEnum: {
       '0': 'UPCOMING',
@@ -34,11 +40,10 @@ export async function GET() {
     },
     validationRules: {
       entryFee: {
-        min: 0,
-        minExclusive: true,
-        max: 100,
-        unit: 'ETH',
-        description: 'Must be > 0 and <= 100 ETH',
+        min: 0.01,
+        max: 10000,
+        unit: 'USDC',
+        description: 'Must be >= $0.01 and <= $10,000 USDC',
       },
       maxTickets: {
         min: 0,
@@ -57,17 +62,25 @@ export async function GET() {
       creatorCommissionBps: {
         min: 0,
         max: 1000,
-        description: 'Basis points (0-1000). 1000 = 10%.',
+        description: 'Basis points (0-1000). 1000 = 10%. Applied to remainder after 2% platform fee.',
       },
     },
     creationFee: {
-      formula: 'min(max(entryFee * maxParticipants * 0.01, 0.0004 ETH), 0.05 ETH)',
-      minWei: '400000000000000',
-      minFormatted: '0.0004 ETH',
-      maxWei: '50000000000000000',
-      maxFormatted: '0.05 ETH',
-      bps: 100,
-      unlimitedPaysMax: true,
+      amount: '1000000',
+      formatted: '$1.00 USDC',
+      description: 'Flat $1 USDC creation fee (anti-spam)',
+    },
+    approval: {
+      description: 'Users approve the Factory contract once for USDC spending. After approval, they can create and join any number of raffles without re-approving.',
+      target: CONTRACT_ADDRESSES[8453].RaffleFactory,
+      token: CONTRACT_ADDRESSES[8453].USDC,
+      method: 'approve(address spender, uint256 amount)',
+      recommendedAmount: 'type(uint256).max for unlimited approval',
+    },
+    feeStructure: {
+      creationFee: '$1.00 USDC (flat, paid at creation)',
+      platformFee: '2% of prize pool (deducted at claim time)',
+      creatorCommission: '0-10% of remainder after platform fee (set by creator)',
     },
   };
 

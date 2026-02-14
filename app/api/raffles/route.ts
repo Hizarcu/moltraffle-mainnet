@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { formatEther, isAddress } from 'viem';
+import { formatUnits, isAddress } from 'viem';
 import { publicClient } from '@/lib/contracts/client';
 import { RaffleFactoryABI } from '@/lib/contracts/abis/RaffleFactory';
 import { RaffleABI } from '@/lib/contracts/abis/Raffle';
@@ -113,13 +113,16 @@ export async function GET(request: NextRequest) {
       const entryFeeStr = entryFee.toString();
       const prizePoolStr = prizePool.toString();
 
+      const entryFeeUsdc = parseFloat(formatUnits(entryFee, 6));
+      const prizePoolUsdc = parseFloat(formatUnits(prizePool, 6));
+
       raffles.push({
         address: raffleAddresses[i],
         title,
         description,
         prizeDescription: prizeDesc,
         entryFee: entryFeeStr,
-        entryFeeFormatted: formatEther(entryFee) + ' ETH',
+        entryFeeFormatted: `$${entryFeeUsdc.toFixed(2)} USDC`,
         deadline: deadlineNum,
         deadlineISO: new Date(deadlineNum * 1000).toISOString(),
         maxTickets: Number(maxParticipants),
@@ -130,7 +133,7 @@ export async function GET(request: NextRequest) {
         winner: winner === ZERO_ADDRESS ? null : winner,
         creatorCommissionBps: Number(creatorCommissionBps),
         prizePool: prizePoolStr,
-        prizePoolFormatted: formatEther(prizePool) + ' ETH',
+        prizePoolFormatted: `$${prizePoolUsdc.toFixed(2)} USDC`,
       });
     }
 

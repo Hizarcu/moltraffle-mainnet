@@ -112,7 +112,7 @@ export function RaffleCardFromAddress({ raffleAddress, userAddress, showOnlyIfPa
         <div className="flex justify-between">
           <span className="text-gray-400">Entry Fee</span>
           <span className="font-medium">
-            {raffle.entryFeeFormatted || `${Number(raffle.entryFee) / 1e18} ETH`}
+            {raffle.entryFeeFormatted || `$${(Number(raffle.entryFee) / 1e6).toFixed(2)} USDC`}
             {(raffle.creatorCommissionBps ?? 0) > 0 && (
               <span className="ml-2 text-xs text-yellow-400">({raffle.creatorCommissionBps! / 100}% creator fee)</span>
             )}
@@ -130,7 +130,7 @@ export function RaffleCardFromAddress({ raffleAddress, userAddress, showOnlyIfPa
         <div className="flex justify-between">
           <span className="text-gray-400">Prize Pool</span>
           <span className="font-medium text-green-400">
-            {raffle.totalPrizePoolFormatted || `${raffle.prizePool?.toFixed(4) || '0'} ETH`}
+            {raffle.totalPrizePoolFormatted || `$${raffle.prizePool?.toFixed(2) || '0'} USDC`}
           </span>
         </div>
       </div>
@@ -139,7 +139,7 @@ export function RaffleCardFromAddress({ raffleAddress, userAddress, showOnlyIfPa
         <ShareButton
           raffleId={raffleAddress}
           title={raffle.title}
-          prizePool={raffle.totalPrizePoolFormatted || `${raffle.prizePool?.toFixed(4) || '0'} ETH`}
+          prizePool={raffle.totalPrizePoolFormatted || `$${raffle.prizePool?.toFixed(2) || '0'} USDC`}
           winner={raffle.winner && raffle.winner !== '0x0000000000000000000000000000000000000000' ? raffle.winner : undefined}
           mode={raffle.winner && raffle.winner !== '0x0000000000000000000000000000000000000000' ? 'winner' : 'active'}
           size="sm"

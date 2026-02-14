@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parseEther, encodeFunctionData, formatEther } from 'viem';
+import { parseUnits, encodeFunctionData } from 'viem';
 import { RaffleFactoryABI } from '@/lib/contracts/abis/RaffleFactory';
+import { USDCABI } from '@/lib/contracts/abis/USDC';
 import { CONTRACT_ADDRESSES } from '@/lib/contracts/addresses';
 
 const FACTORY_ADDRESS = CONTRACT_ADDRESSES[8453].RaffleFactory;
-const MIN_FEE = BigInt('400000000000000');       // 0.0004 ETH
-const MAX_FEE = BigInt('50000000000000000');      // 0.05 ETH
-const CREATION_FEE_BPS = BigInt(100);
+const USDC_ADDRESS = CONTRACT_ADDRESSES[8453].USDC;
+const CREATION_FEE = BigInt(1000000); // $1 USDC
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,16 +16,6 @@ const corsHeaders = {
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: corsHeaders });
-}
-
-function calculateCreationFee(entryFeeWei: bigint, maxParticipants: bigint): bigint {
-  if (maxParticipants === BigInt(0)) {
-    return MAX_FEE;
-  }
-  let fee = entryFeeWei * maxParticipants * CREATION_FEE_BPS / BigInt(10000);
-  if (fee < MIN_FEE) fee = MIN_FEE;
-  if (fee > MAX_FEE) fee = MAX_FEE;
-  return fee;
 }
 
 export async function GET(request: NextRequest) {
@@ -50,7 +40,7 @@ export async function GET(request: NextRequest) {
       errors.push('description: required, 10-500 characters');
     }
     if (!entryFeeStr) {
-      errors.push('entryFee: required (in ETH, e.g. "0.01")');
+      errors.push('entryFee: required (in USDC, e.g. "1.00")');
     }
     if (!deadlineStr) {
       errors.push('deadline: required (unix timestamp in seconds)');
@@ -66,22 +56,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Parse and validate values
-    let entryFeeWei: bigint;
+    // Parse and validate values (USDC has 6 decimals)
+    let entryFeeRaw: bigint;
     try {
-      entryFeeWei = parseEther(entryFeeStr!);
+      entryFeeRaw = parseUnits(entryFeeStr!, 6);
     } catch {
       return NextResponse.json(
-        { error: 'Invalid entryFee — must be a valid ETH amount (e.g. "0.01")' },
+        { error: 'Invalid entryFee — must be a valid USDC amount (e.g. "1.00")' },
         { status: 400, headers: corsHeaders }
       );
     }
 
-    if (entryFeeWei <= BigInt(0)) {
-      errors.push('entryFee must be > 0');
+    if (entryFeeRaw < BigInt(10000)) {
+      errors.push('entryFee must be >= $0.01 USDC');
     }
-    if (entryFeeWei > parseEther('100')) {
-      errors.push('entryFee must be <= 100 ETH');
+    if (entryFeeRaw > BigInt(10000000000)) {
+      errors.push('entryFee must be <= $10,000 USDC');
     }
 
     const deadline = parseInt(deadlineStr!, 10);
@@ -118,10 +108,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Calculate creation fee
-    const creationFee = calculateCreationFee(entryFeeWei, BigInt(maxParticipants));
-
-    // Encode calldata
+    // Encode createRaffle calldata
     const calldata = encodeFunctionData({
       abi: RaffleFactoryABI,
       functionName: 'createRaffle',
@@ -129,29 +116,49 @@ export async function GET(request: NextRequest) {
         title!,
         description!,
         prizeDescription,
-        entryFeeWei,
+        entryFeeRaw,
         BigInt(deadline),
         BigInt(maxParticipants),
         BigInt(creatorCommissionBps),
       ],
     });
 
+    // Encode USDC approval calldata (for agents that need it)
+    const usdcApprovalCalldata = encodeFunctionData({
+      abi: USDCABI,
+      functionName: 'approve',
+      args: [
+        FACTORY_ADDRESS as `0x${string}`,
+        BigInt('115792089237316195423570985008687907853269984665640564039457584007913129639935'), // max uint256
+      ],
+    });
+
     return NextResponse.json({
       to: FACTORY_ADDRESS,
-      value: creationFee.toString(),
-      valueFormatted: formatEther(creationFee) + ' ETH (creation fee)',
+      value: '0',
       calldata,
       function: 'createRaffle(string,string,string,uint256,uint256,uint256,uint256)',
       args: {
         title: title!,
         description: description!,
         prizeDescription,
-        entryFee: entryFeeWei.toString(),
-        entryFeeFormatted: entryFeeStr! + ' ETH',
+        entryFee: entryFeeRaw.toString(),
+        entryFeeFormatted: '$' + entryFeeStr! + ' USDC',
         deadline,
         deadlineISO: new Date(deadline * 1000).toISOString(),
         maxTickets: maxParticipants,
         creatorCommissionBps,
+      },
+      creationFee: {
+        amount: CREATION_FEE.toString(),
+        formatted: '$1.00 USDC',
+        note: 'Factory pulls $1 USDC via safeTransferFrom. Caller must have approved Factory for USDC spending.',
+      },
+      usdcApproval: {
+        to: USDC_ADDRESS,
+        calldata: usdcApprovalCalldata,
+        function: 'approve(address,uint256)',
+        note: 'Call this first if the Factory does not have sufficient USDC allowance. One-time approval for unlimited spending.',
       },
       estimatedGas: '~500000',
     }, {
