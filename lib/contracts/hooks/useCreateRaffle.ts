@@ -1,4 +1,4 @@
-import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
 import { parseUnits } from 'viem';
 import { useEffect } from 'react';
 import toast from 'react-hot-toast';
@@ -23,6 +23,8 @@ interface UseCreateRaffleOptions {
 
 export function useCreateRaffle(options?: UseCreateRaffleOptions) {
   const { writeContract, data: hash, error, isPending } = useWriteContract();
+  const chainId = useChainId();
+  const factoryAddr = getRaffleFactoryAddress(chainId)?.toLowerCase();
 
   const { isLoading: isConfirming, isSuccess, data: receipt } = useWaitForTransactionReceipt({
     hash,
@@ -33,15 +35,17 @@ export function useCreateRaffle(options?: UseCreateRaffleOptions) {
     if (isSuccess && receipt) {
       toast.success('Raffle created successfully!', { id: 'create-raffle' });
 
-      // Extract raffle address from logs (RaffleCreated event)
-      const raffleCreatedEvent = receipt.logs.find((log) => log.topics[0]);
+      // Extract raffle address from RaffleCreated event (emitted by Factory, not USDC)
+      const raffleCreatedEvent = receipt.logs.find(
+        (log) => log.address.toLowerCase() === factoryAddr && log.topics.length >= 2
+      );
       if (raffleCreatedEvent && raffleCreatedEvent.topics[1]) {
         // The raffle address is the first indexed parameter (topics[1])
         const raffleAddress = `0x${raffleCreatedEvent.topics[1].slice(26)}`;
         options?.onSuccess?.(raffleAddress);
       }
     }
-  }, [isSuccess, receipt, options]);
+  }, [isSuccess, receipt, options, factoryAddr]);
 
   // Handle error
   useEffect(() => {
