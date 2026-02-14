@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { formatEther, isAddress, encodeFunctionData } from 'viem';
+import { formatEther, isAddress, encodeFunctionData, parseEther } from 'viem';
 import { publicClient } from '@/lib/contracts/client';
 import { RaffleABI } from '@/lib/contracts/abis/Raffle';
 
@@ -28,13 +28,14 @@ function buildActions(
   raffleAddress: `0x${string}`,
   statusNum: number,
   deadlineNum: number,
-  maxParticipants: number,
-  currentParticipants: number,
+  maxTickets: number,
+  currentTickets: number,
   entryFee: bigint,
+  ticketCount: number = 1,
 ) {
   const now = Math.floor(Date.now() / 1000);
   const deadlinePassed = now >= deadlineNum;
-  const isFull = maxParticipants > 0 && currentParticipants >= maxParticipants;
+  const isFull = maxTickets > 0 && currentTickets >= maxTickets;
 
   // Join action
   const joinAction: Record<string, unknown> = (() => {
@@ -53,18 +54,20 @@ function buildActions(
     if (isFull) {
       return { available: false, reason: 'Raffle is full' };
     }
+    const totalValue = entryFee * BigInt(ticketCount);
     return {
       available: true,
       to: raffleAddress,
       function: 'joinRaffle(uint256)',
-      args: { ticketCount: 'number of tickets (uint256)' },
-      value: entryFee.toString() + ' * ticketCount (in wei)',
-      calldata_example: encodeFunctionData({
+      args: { ticketCount },
+      value: totalValue.toString(),
+      valueFormatted: formatEther(totalValue) + ' ETH',
+      calldata: encodeFunctionData({
         abi: RaffleABI,
         functionName: 'joinRaffle',
-        args: [BigInt(1)],
+        args: [BigInt(ticketCount)],
       }),
-      note: 'Send entryFee * ticketCount as msg.value',
+      note: `Send ${formatEther(totalValue)} ETH for ${ticketCount} ticket(s). Use ?ticketCount=N to change.`,
     };
   })();
 
@@ -73,8 +76,8 @@ function buildActions(
     if (statusNum !== 0 && statusNum !== 1) {
       return { available: false, reason: 'Draw already initiated or raffle not active' };
     }
-    if (currentParticipants < 2) {
-      return { available: false, reason: 'Need at least 2 participants' };
+    if (currentTickets < 2) {
+      return { available: false, reason: 'Need at least 2 tickets sold' };
     }
     if (!deadlinePassed && !isFull) {
       return { available: false, reason: 'Deadline not reached and raffle not full' };
@@ -173,6 +176,8 @@ export async function GET(
     }
 
     const raffleAddress = address as `0x${string}`;
+    const { searchParams } = new URL(request.url);
+    const ticketCount = Math.max(1, parseInt(searchParams.get('ticketCount') || '1', 10));
 
     // Multicall: getRaffleDetails + getPrizePool + prizeDescription + getParticipants + vrfRequestId + randomResult + winnerIndex
     const results = await publicClient.multicall({
@@ -225,6 +230,7 @@ export async function GET(
       maxParticipantsNum,
       currentParticipantsNum,
       entryFee,
+      ticketCount,
     );
 
     const raffle = {
@@ -236,8 +242,8 @@ export async function GET(
       entryFeeFormatted: formatEther(entryFee) + ' ETH',
       deadline: deadlineNum,
       deadlineISO: new Date(deadlineNum * 1000).toISOString(),
-      maxParticipants: maxParticipantsNum,
-      currentParticipants: currentParticipantsNum,
+      maxTickets: maxParticipantsNum,
+      ticketsSold: currentParticipantsNum,
       status: statusNum,
       statusLabel,
       creator,
@@ -255,7 +261,7 @@ export async function GET(
     return NextResponse.json(raffle, {
       headers: {
         ...corsHeaders,
-        'Cache-Control': 'public, s-maxage=5, stale-while-revalidate=15',
+        'Cache-Control': 'no-store',
       },
     });
   } catch (error) {

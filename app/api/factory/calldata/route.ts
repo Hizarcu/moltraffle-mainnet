@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     const prizeDescription = searchParams.get('prizeDescription') || '';
     const entryFeeStr = searchParams.get('entryFee');
     const deadlineStr = searchParams.get('deadline');
-    const maxParticipantsStr = searchParams.get('maxParticipants');
+    const maxParticipantsStr = searchParams.get('maxTickets') || searchParams.get('maxParticipants');
     const creatorCommissionBpsStr = searchParams.get('creatorCommissionBps') || '0';
 
     // Validate required params
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       errors.push('deadline: required (unix timestamp in seconds)');
     }
     if (maxParticipantsStr === null || maxParticipantsStr === undefined || maxParticipantsStr === '') {
-      errors.push('maxParticipants: required (0 = unlimited, or 2-10000)');
+      errors.push('maxTickets: required (0 = unlimited, or 2-10000). Alias: maxParticipants');
     }
 
     if (errors.length > 0) {
@@ -101,9 +101,9 @@ export async function GET(request: NextRequest) {
     if (isNaN(maxParticipants) || maxParticipants < 0) {
       errors.push('maxParticipants must be >= 0');
     } else if (maxParticipants === 1) {
-      errors.push('maxParticipants cannot be 1 (use 0 for unlimited or >= 2)');
+      errors.push('maxTickets cannot be 1 (use 0 for unlimited or >= 2)');
     } else if (maxParticipants > 10000) {
-      errors.push('maxParticipants must be <= 10000');
+      errors.push('maxTickets must be <= 10000');
     }
 
     const creatorCommissionBps = parseInt(creatorCommissionBpsStr, 10);
@@ -150,7 +150,7 @@ export async function GET(request: NextRequest) {
         entryFeeFormatted: entryFeeStr! + ' ETH',
         deadline,
         deadlineISO: new Date(deadline * 1000).toISOString(),
-        maxParticipants,
+        maxTickets: maxParticipants,
         creatorCommissionBps,
       },
       estimatedGas: '~500000',

@@ -40,12 +40,13 @@ export async function GET() {
         unit: 'ETH',
         description: 'Must be > 0 and <= 100 ETH',
       },
-      maxParticipants: {
+      maxTickets: {
         min: 0,
         max: 10000,
         forbidden: [1],
         zeroMeansUnlimited: true,
-        description: '0 = unlimited, 2-10000 = limited. Never use 1.',
+        contractParam: 'maxParticipants',
+        description: 'Max total tickets (not unique addresses). 0 = unlimited, 2-10000 = limited. Never use 1.',
       },
       deadline: {
         min: 'now + 1 second',
