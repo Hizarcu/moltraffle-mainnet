@@ -16,7 +16,9 @@ import { WinnerDisplay } from '@/components/raffle/WinnerDisplay';
 import { DrawWinnerButton } from '@/components/raffle/DrawWinnerButton';
 import { ShareButton } from '@/components/raffle/ShareButton';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { useReadContract } from 'wagmi';
 import { useRaffleDetails } from '@/lib/contracts/hooks/useAllRaffles';
+import { RaffleABI } from '@/lib/contracts/abis/Raffle';
 import { formatAddress, formatDate, getStatusColor } from '@/lib/utils/formatting';
 import { RaffleStatus } from '@/lib/types/raffle';
 
@@ -36,6 +38,19 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
   // Fetch from blockchain
   const { raffle, isLoading, refetch } = useRaffleDetails(id);
 
+  // Read actual ticket count from contract (not participants array — that doesn't update after refund)
+  const { data: onChainTicketCount, refetch: refetchTicketCount } = useReadContract({
+    address: id as `0x${string}`,
+    abi: RaffleABI,
+    functionName: 'getUserTicketCount',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address && !!id,
+      refetchInterval: 30000,
+    },
+  });
+  const userTicketCount = onChainTicketCount ? Number(onChainTicketCount) : 0;
+
   // Calculate hasEnded only on client to avoid hydration mismatch
   useEffect(() => {
     if (!isMounted || !raffle) return;
@@ -54,6 +69,7 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
 
   const handleJoinSuccess = () => {
     refetch();
+    refetchTicketCount();
   };
 
   // Poll for VRF response after drawing winner
@@ -77,6 +93,7 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
 
   const handleDrawSuccess = () => {
     setShowConfetti(true);
+    refetchTicketCount();
     setTimeout(() => setShowConfetti(false), 10000);
 
     // Poll every 3s for VRF response (winner to be set on-chain)
@@ -150,9 +167,6 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
   const hasJoined = address && raffle.participants.some(
     p => p.toLowerCase() === address.toLowerCase()
   );
-  const userTicketCount = address
-    ? raffle.participants.filter(p => p.toLowerCase() === address.toLowerCase()).length
-    : 0;
   const isCreator = address && raffle.creator.toLowerCase() === address.toLowerCase();
   const hasParticipants = raffle.participants.length > 0;
 
@@ -291,7 +305,7 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
                 raffleId={id}
                 raffleTitle={raffle.title}
                 prizeClaimed={prizeClaimed}
-                onClaimSuccess={() => refetch()}
+                onClaimSuccess={() => { refetch(); refetchTicketCount(); }}
               />
             )}
 

@@ -145,11 +145,13 @@ export function useRaffleDetails(raffleAddress: string) {
     const currentTime = Date.now();
     const hasWinner = winner && winner !== '0x0000000000000000000000000000000000000000';
 
-    // Check contract status - CANCELLED (4) takes priority
+    // Check contract status - CANCELLED (4) and CLAIMED (5) take priority
     // Otherwise calculate status ourselves as a workaround for buggy contract logic
     let actualStatus: number;
     if (contractStatus === 4) {
-      actualStatus = 4; // CANCELLED - prize was claimed or raffle cancelled
+      actualStatus = 4; // CANCELLED
+    } else if (contractStatus === 5) {
+      actualStatus = 5; // CLAIMED - prize was claimed
     } else if (hasWinner) {
       actualStatus = 2; // DRAWN - winner has been selected
     } else if (deadlineDate.getTime() <= currentTime) {
