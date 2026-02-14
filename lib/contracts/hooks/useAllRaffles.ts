@@ -1,5 +1,5 @@
-import { useReadContract, useChainId } from 'wagmi';
-import { useEffect, useState, useCallback } from 'react';
+import { useReadContract, useReadContracts, useChainId } from 'wagmi';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { getRaffleFactoryAddress } from '../addresses';
 import { RaffleFactoryABI } from '../abis/RaffleFactory';
 import { RaffleABI } from '../abis/Raffle';
@@ -22,7 +22,7 @@ export function useAllRaffles() {
     functionName: 'getAllRaffles',
     query: {
       enabled: !!factoryAddress,
-      refetchInterval: 30000, // Refetch every 30 seconds
+      refetchInterval: 8000, // Refetch every 30 seconds
     },
   });
 
@@ -63,7 +63,7 @@ export function useRaffleDetails(raffleAddress: string) {
     functionName: 'getRaffleDetails',
     query: {
       enabled: !!raffleAddress,
-      refetchInterval: 30000,
+      refetchInterval: 8000,
     },
   });
 
@@ -73,7 +73,7 @@ export function useRaffleDetails(raffleAddress: string) {
     functionName: 'getParticipants',
     query: {
       enabled: !!raffleAddress,
-      refetchInterval: 30000,
+      refetchInterval: 8000,
     },
   });
 
@@ -83,7 +83,7 @@ export function useRaffleDetails(raffleAddress: string) {
     functionName: 'winner',
     query: {
       enabled: !!raffleAddress,
-      refetchInterval: 30000,
+      refetchInterval: 8000,
     },
   });
 
@@ -93,7 +93,7 @@ export function useRaffleDetails(raffleAddress: string) {
     functionName: 'vrfRequestId',
     query: {
       enabled: !!raffleAddress,
-      refetchInterval: 30000,
+      refetchInterval: 8000,
     },
   });
 
@@ -103,7 +103,7 @@ export function useRaffleDetails(raffleAddress: string) {
     functionName: 'randomResult',
     query: {
       enabled: !!raffleAddress,
-      refetchInterval: 30000,
+      refetchInterval: 8000,
     },
   });
 
@@ -122,7 +122,7 @@ export function useRaffleDetails(raffleAddress: string) {
     functionName: 'winnerIndex',
     query: {
       enabled: !!raffleAddress,
-      refetchInterval: 30000,
+      refetchInterval: 8000,
     },
   });
 
@@ -197,5 +197,122 @@ export function useRaffleDetails(raffleAddress: string) {
     raffle,
     isLoading: isLoadingInfo,
     refetch,
+  };
+}
+
+/**
+ * Sortable raffle data returned by useAllRafflesSortable
+ */
+export interface SortableRaffleData {
+  address: `0x${string}`;
+  entryFee: bigint;
+  maxParticipants: number;
+  currentParticipants: number;
+  creatorCommissionBps: number;
+  actualStatus: number; // 0=ACTIVE, 1=ENDED, 2=DRAWN, 4=CANCELLED, 5=CLAIMED
+  expectedPrizePool: bigint; // in USDC raw units (6 decimals)
+}
+
+/**
+ * Hook that batch-fetches getRaffleDetails for all raffles via multicall.
+ * Provides sortable data so the parent page can filter + sort before rendering cards.
+ */
+export function useAllRafflesSortable() {
+  const chainId = useChainId();
+  const factoryAddress = getRaffleFactoryAddress(chainId);
+
+  // Step 1: Get all raffle addresses
+  const { data: raffleAddresses, isLoading: isLoadingAddresses } = useReadContract({
+    address: factoryAddress as `0x${string}`,
+    abi: RaffleFactoryABI,
+    functionName: 'getAllRaffles',
+    query: {
+      enabled: !!factoryAddress,
+      refetchInterval: 8000,
+    },
+  });
+
+  const addresses = useMemo(
+    () => (raffleAddresses as `0x${string}`[]) || [],
+    [raffleAddresses]
+  );
+
+  // Step 2: Batch-fetch getRaffleDetails for all addresses via multicall
+  const contracts = useMemo(
+    () =>
+      addresses.map((addr) => ({
+        address: addr,
+        abi: RaffleABI,
+        functionName: 'getRaffleDetails' as const,
+      })),
+    [addresses]
+  );
+
+  const { data: detailsResults, isLoading: isLoadingDetails } = useReadContracts({
+    contracts,
+    query: {
+      enabled: addresses.length > 0,
+      refetchInterval: 8000,
+    },
+  });
+
+  // Step 3: Transform multicall results into SortableRaffleData[]
+  const sortableData: SortableRaffleData[] = useMemo(() => {
+    if (!detailsResults || detailsResults.length === 0) return [];
+
+    const currentTime = Date.now();
+
+    return addresses
+      .map((addr, i) => {
+        const result = detailsResults[i];
+        if (!result || result.status !== 'success' || !result.result) return null;
+
+        const data = result.result as readonly [string, string, bigint, bigint, bigint, bigint, number, string, string, bigint];
+        const entryFee = data[2];
+        const deadlineTimestamp = Number(data[3]);
+        const maxParticipants = Number(data[4]);
+        const currentParticipants = Number(data[5]);
+        const contractStatus = Number(data[6]);
+        const winnerAddr = data[8];
+        const creatorCommissionBps = Number(data[9]);
+
+        const deadlineMs = deadlineTimestamp * 1000;
+        const hasWinner = winnerAddr && winnerAddr !== '0x0000000000000000000000000000000000000000';
+
+        // Mirror status logic from useRaffleDetails
+        let actualStatus: number;
+        if (contractStatus === 4) {
+          actualStatus = 4; // CANCELLED
+        } else if (contractStatus === 5) {
+          actualStatus = 5; // CLAIMED
+        } else if (hasWinner) {
+          actualStatus = 2; // DRAWN
+        } else if (deadlineMs <= currentTime) {
+          actualStatus = 1; // ENDED
+        } else {
+          actualStatus = 0; // ACTIVE
+        }
+
+        // Expected prize pool: entryFee * maxParticipants (or currentParticipants if unlimited)
+        const ticketCount = maxParticipants > 0 ? maxParticipants : currentParticipants;
+        const expectedPrizePool = entryFee * BigInt(ticketCount);
+
+        return {
+          address: addr,
+          entryFee,
+          maxParticipants,
+          currentParticipants,
+          creatorCommissionBps,
+          actualStatus,
+          expectedPrizePool,
+        } as SortableRaffleData;
+      })
+      .filter((item): item is SortableRaffleData => item !== null);
+  }, [addresses, detailsResults]);
+
+  return {
+    raffleAddresses: addresses,
+    sortableData,
+    isLoading: isLoadingAddresses || isLoadingDetails,
   };
 }
