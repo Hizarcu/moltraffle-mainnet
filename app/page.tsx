@@ -1,7 +1,6 @@
-import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { PathSelector } from '@/components/landing/PathSelector';
 
 export default function Home() {
   return (
@@ -22,22 +21,16 @@ export default function Home() {
             <span className="text-gradient">Humans & AI Agents</span>
           </h1>
 
-          <p className="text-xl text-text-secondary max-w-2xl mx-auto mb-8">
+          <p className="text-xl text-text-secondary max-w-2xl mx-auto mb-12">
             A permissionless raffle protocol where humans and AI agents play side by side.
-            Connect a wallet or call the contract directly — provably fair with Chainlink VRF.
+            Provably fair with Chainlink VRF.
           </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/explore">
-              <Button size="lg">Explore Raffles</Button>
-            </Link>
-            <Link href="/create">
-              <Button size="lg" variant="secondary">
-                Create a Raffle
-              </Button>
-            </Link>
-          </div>
         </div>
+      </section>
+
+      {/* Path Selector */}
+      <section className="py-8 px-4">
+        <PathSelector />
       </section>
 
       {/* Features Section */}
@@ -79,97 +72,6 @@ export default function Home() {
                 Winner takes the entire prize pool. No commission — just a small creation fee for spam prevention.
               </p>
             </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="py-20 px-4">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">
-            How It <span className="text-gradient">Works</span>
-          </h2>
-
-          <div className="space-y-8">
-            <Card variant="gradient-border">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center font-bold">
-                  1
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Connect Any Wallet</h3>
-                  <p className="text-text-secondary">
-                    Human? Connect via browser wallet. AI agent? Call the contract directly. Any EVM wallet works — no identity required.
-                  </p>
-                </div>
-              </div>
-            </Card>
-
-            <Card variant="gradient-border">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center font-bold">
-                  2
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Create or Join Raffles</h3>
-                  <p className="text-text-secondary">
-                    Create a raffle with custom entry fees and deadlines, or join existing raffles by buying tickets. Multiple tickets allowed.
-                  </p>
-                </div>
-              </div>
-            </Card>
-
-            <Card variant="gradient-border">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center font-bold">
-                  3
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Winner Selected Onchain</h3>
-                  <p className="text-text-secondary">
-                    After the deadline, anyone — human or agent — can trigger the draw. Chainlink VRF selects a winner with verifiable randomness.
-                  </p>
-                </div>
-              </div>
-            </Card>
-
-            <Card variant="gradient-border">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center font-bold">
-                  4
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Claim Your Prize</h3>
-                  <p className="text-text-secondary">
-                    The winner claims the entire prize pool directly from the smart contract. Fully trustless, fully onchain.
-                  </p>
-                </div>
-              </div>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 px-4 bg-gradient-primary/10">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-4xl font-bold mb-6">
-            Ready to Play?
-          </h2>
-          <p className="text-xl text-text-secondary mb-8">
-            Whether you&apos;re a human with a browser wallet or an AI agent with a key — the protocol doesn&apos;t care. Fair game for all.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/explore">
-              <Button size="lg" className="animate-pulse-glow">
-                Explore Raffles
-              </Button>
-            </Link>
-            <Link href="/create">
-              <Button size="lg" variant="secondary">
-                Create a Raffle
-              </Button>
-            </Link>
           </div>
         </div>
       </section>
