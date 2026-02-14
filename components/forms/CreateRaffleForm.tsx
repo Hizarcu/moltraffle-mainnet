@@ -10,6 +10,7 @@ import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { useCreateRaffle } from '@/lib/contracts/hooks/useCreateRaffle';
 import { useCreationFee } from '@/lib/contracts/hooks/useCreationFee';
+import { useUSDCApproval } from '@/lib/contracts/hooks/useUSDCApproval';
 import { createRaffleSchema, CreateRaffleFormData, defaultValues, generatePrizeDescription } from '@/lib/schemas/createRaffle';
 
 const steps = [
@@ -48,6 +49,11 @@ export function CreateRaffleForm() {
 
   // Flat creation fee
   const creationFee = useCreationFee();
+
+  // USDC approval for creation fee ($1 = 1,000,000 raw)
+  const { needsApproval, approve, isApproving } = useUSDCApproval({
+    requiredAmount: BigInt(1000000),
+  });
 
   const nextStep = async () => {
     let fieldsToValidate: (keyof CreateRaffleFormData)[] = [];
@@ -404,6 +410,10 @@ export function CreateRaffleForm() {
             {currentStep < 4 ? (
               <Button type="button" onClick={nextStep}>
                 Next
+              </Button>
+            ) : needsApproval ? (
+              <Button type="button" onClick={approve} disabled={isApproving}>
+                {isApproving ? 'Approving...' : 'Approve USDC'}
               </Button>
             ) : (
               <Button type="submit" disabled={isCreating}>
