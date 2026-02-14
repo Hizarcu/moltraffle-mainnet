@@ -197,12 +197,13 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
             <div className="flex items-center gap-3">
               <Badge variant={
                 isCancelled ? 'warning' :
+                prizeClaimed ? 'info' :
                 status === 0 ? 'success' :
                 status === 1 ? 'warning' :
                 'default'
               }>
                 {isCancelled ? 'CANCELLED' :
-                 prizeClaimed ? 'CLAIMED' :
+                 prizeClaimed ? 'COMPLETED' :
                  status === 0 ? 'ACTIVE' :
                  status === 1 ? 'ENDED' : 'DRAWN'}
               </Badge>

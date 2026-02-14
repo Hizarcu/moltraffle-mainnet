@@ -63,7 +63,9 @@ export function RaffleCardFromAddress({ raffleAddress, userAddress, showOnlyIfPa
     if (s === 0 || s === 'active') return 'bg-green-500/20 text-green-400'; // ACTIVE
     if (s === 1 || s === 'ended') return 'bg-yellow-500/20 text-yellow-400'; // ENDED
     if (s === 2 || s === 'drawn') return 'bg-purple-500/20 text-purple-400'; // DRAWN
-    if (s === 4 || s === 'cancelled') return 'bg-blue-500/20 text-blue-400'; // COMPLETED (prize claimed)
+    if (s === 3) return 'bg-orange-500/20 text-orange-400'; // DRAWING (VRF pending)
+    if (s === 4 || s === 'cancelled') return 'bg-red-500/20 text-red-400'; // CANCELLED
+    if (s === 5) return 'bg-blue-500/20 text-blue-400'; // CLAIMED
     return 'bg-gray-500/20 text-gray-400';
   };
 
@@ -72,7 +74,9 @@ export function RaffleCardFromAddress({ raffleAddress, userAddress, showOnlyIfPa
     if (s === 0 || s === 'active') return 'Active';
     if (s === 1 || s === 'ended') return 'Ended';
     if (s === 2 || s === 'drawn') return 'Drawn';
-    if (s === 4 || s === 'cancelled') return 'Completed';
+    if (s === 3) return 'Drawing...';
+    if (s === 4 || s === 'cancelled') return 'Cancelled';
+    if (s === 5) return 'Completed';
     return 'Unknown';
   };
 

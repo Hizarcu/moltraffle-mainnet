@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Button } from '../ui/Button';
 import { useDrawWinner } from '@/lib/contracts/hooks/useDrawWinner';
 import { useCancelRaffle } from '@/lib/contracts/hooks/useCancelRaffle';
@@ -26,9 +27,11 @@ export function DrawWinnerButton({
   userTicketCount,
   onSuccess,
 }: DrawWinnerButtonProps) {
-  const { drawWinner, isDrawing } = useDrawWinner(raffleAddress, { onSuccess });
-  const { cancelRaffle, isCancelling } = useCancelRaffle(raffleAddress, { onSuccess });
-  const { withdrawRefund, isWithdrawing } = useWithdrawRefund(raffleAddress, { onSuccess });
+  const [actionDone, setActionDone] = useState(false);
+  const handleSuccess = () => { setActionDone(true); onSuccess?.(); };
+  const { drawWinner, isDrawing } = useDrawWinner(raffleAddress, { onSuccess: handleSuccess });
+  const { cancelRaffle, isCancelling } = useCancelRaffle(raffleAddress, { onSuccess: handleSuccess });
+  const { withdrawRefund, isWithdrawing } = useWithdrawRefund(raffleAddress, { onSuccess: handleSuccess });
 
   // Cancelled — show withdraw refund button if user has tickets
   if (isCancelled) {
@@ -36,10 +39,10 @@ export function DrawWinnerButton({
       return (
         <Button
           onClick={withdrawRefund}
-          disabled={isWithdrawing}
+          disabled={isWithdrawing || actionDone}
           className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
         >
-          {isWithdrawing ? 'Withdrawing...' : 'Withdraw Refund'}
+          {isWithdrawing ? 'Withdrawing...' : actionDone ? 'Refund Withdrawn' : 'Withdraw Refund'}
         </Button>
       );
     }
@@ -69,10 +72,10 @@ export function DrawWinnerButton({
         </Button>
         <Button
           onClick={cancelRaffle}
-          disabled={isCancelling}
+          disabled={isCancelling || actionDone}
           className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
         >
-          {isCancelling ? 'Cancelling...' : 'Cancel & Refund'}
+          {isCancelling ? 'Cancelling...' : actionDone ? 'Cancelled' : 'Cancel & Refund'}
         </Button>
       </div>
     );
@@ -81,10 +84,10 @@ export function DrawWinnerButton({
   return (
     <Button
       onClick={drawWinner}
-      disabled={isDrawing}
+      disabled={isDrawing || actionDone}
       className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
     >
-      {isDrawing ? 'Drawing Winner...' : 'Draw Winner'}
+      {isDrawing ? 'Drawing Winner...' : actionDone ? 'Winner Drawn — Waiting for VRF...' : 'Draw Winner'}
     </Button>
   );
 }

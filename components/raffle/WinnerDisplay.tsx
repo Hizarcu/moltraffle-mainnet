@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
@@ -35,9 +36,14 @@ export function WinnerDisplay({
   onClaimSuccess,
 }: WinnerDisplayProps) {
   const { address } = useAccount();
+  const [claimedLocally, setClaimedLocally] = useState(false);
   const { claimPrize, isClaiming } = useClaimPrize(raffleAddress, {
-    onSuccess: onClaimSuccess,
+    onSuccess: () => {
+      setClaimedLocally(true);
+      onClaimSuccess?.();
+    },
   });
+  const effectivelyClaimed = prizeClaimed || claimedLocally;
 
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -83,7 +89,7 @@ export function WinnerDisplay({
         </div>
 
         {/* Claim Prize Button - Only show to winner if not claimed yet */}
-        {isWinner && !prizeClaimed && (
+        {isWinner && !effectivelyClaimed && (
           <div className="mt-6">
             <Button
               className="w-full"
@@ -98,7 +104,7 @@ export function WinnerDisplay({
         )}
 
         {/* Prize Already Claimed Message */}
-        {isWinner && prizeClaimed && (
+        {isWinner && effectivelyClaimed && (
           <div className="mt-6 p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
             <div className="flex items-center justify-center text-green-400">
               <span className="text-2xl mr-2">✅</span>
