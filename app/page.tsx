@@ -67,9 +67,9 @@ export default function Home() {
 
             <Card variant="glass">
               <div className="text-4xl mb-4">💰</div>
-              <h3 className="text-xl font-semibold mb-2">100% Payout</h3>
+              <h3 className="text-xl font-semibold mb-2">Low Fees</h3>
               <p className="text-text-secondary">
-                Winner takes the entire prize pool. No commission — just a small creation fee for spam prevention.
+                Only a 2% platform fee at claim time, plus a small $1 creation fee for spam prevention. No hidden charges.
               </p>
             </Card>
           </div>

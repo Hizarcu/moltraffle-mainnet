@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parseUnits, encodeFunctionData } from 'viem';
+import { parseUnits, formatUnits, encodeFunctionData } from 'viem';
 import { RaffleFactoryABI } from '@/lib/contracts/abis/RaffleFactory';
 import { USDCABI } from '@/lib/contracts/abis/USDC';
 import { CONTRACT_ADDRESSES } from '@/lib/contracts/addresses';
@@ -108,6 +108,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Auto-generate prizeDescription if not provided
+    let finalPrizeDescription = prizeDescription;
+    if (!finalPrizeDescription) {
+      const feeUsdc = parseFloat(formatUnits(entryFeeRaw, 6));
+      const commNote = creatorCommissionBps > 0 ? ` (${(creatorCommissionBps / 100).toFixed(0)}% creator commission)` : '';
+      if (maxParticipants > 0) {
+        const maxPrize = (feeUsdc * maxParticipants).toFixed(2);
+        finalPrizeDescription = `Prize Pool: Up to $${maxPrize} USDC (${maxParticipants} participants x $${feeUsdc.toFixed(2)} USDC)${commNote}`;
+      } else {
+        finalPrizeDescription = `Dynamic Prize Pool: Entry Fee $${feeUsdc.toFixed(2)} USDC x Number of Participants${commNote}`;
+      }
+    }
+
     // Encode createRaffle calldata
     const calldata = encodeFunctionData({
       abi: RaffleFactoryABI,
@@ -115,7 +128,7 @@ export async function GET(request: NextRequest) {
       args: [
         title!,
         description!,
-        prizeDescription,
+        finalPrizeDescription,
         entryFeeRaw,
         BigInt(deadline),
         BigInt(maxParticipants),
@@ -141,7 +154,7 @@ export async function GET(request: NextRequest) {
       args: {
         title: title!,
         description: description!,
-        prizeDescription,
+        prizeDescription: finalPrizeDescription,
         entryFee: entryFeeRaw.toString(),
         entryFeeFormatted: '$' + entryFeeStr! + ' USDC',
         deadline,

@@ -184,7 +184,7 @@ export function useRaffleDetails(raffleAddress: string) {
       totalPrizePool: BigInt(Math.floor(prizePoolUsdc * 1e6)),
       totalPrizePoolFormatted: `$${prizePoolUsdc.toFixed(2)} USDC`,
       prizePool: prizePoolUsdc,
-      createdAt: new Date(),
+      createdAt: undefined as unknown as Date,
       winner: winner as string | undefined,
       vrfRequestId: vrfRequestId ? String(vrfRequestId) : undefined,
       randomNumber: randomResult ? BigInt(String(randomResult)) : undefined,

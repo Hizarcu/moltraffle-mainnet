@@ -106,7 +106,8 @@ export function CreateRaffleForm() {
     return (
       <Card className="p-8 text-center">
         <h2 className="text-2xl font-bold mb-4">Connect Your Wallet</h2>
-        <p className="text-gray-400">Please connect your wallet to create a raffle</p>
+        <p className="text-gray-400 mb-4">Please connect your wallet to create a raffle</p>
+        <appkit-button />
       </Card>
     );
   }
@@ -159,7 +160,7 @@ export function CreateRaffleForm() {
               <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                 <p className="text-sm font-semibold text-blue-400 mb-2">Contract Validation Rules</p>
                 <ul className="text-xs text-gray-300 space-y-1">
-                  <li>* <strong>Entry Fee:</strong> Must be &gt; 0 USDC and &le; 100,000 USDC</li>
+                  <li>* <strong>Entry Fee:</strong> Must be &gt; 0 USDC and &le; $10,000 USDC</li>
                   <li>* <strong>Max Participants:</strong> 0 (unlimited) OR 2-10,000 (limited). Cannot be 1.</li>
                   <li>* <strong>Deadline:</strong> Must be in future and within 365 days</li>
                   <li className="text-yellow-400 mt-2">Values outside these limits will be rejected by smart contract</li>
@@ -275,6 +276,30 @@ export function CreateRaffleForm() {
 
               <div>
                 <label className="block text-sm font-medium mb-2">End Date & Time</label>
+                <div className="flex gap-2 mb-3">
+                  {[
+                    { label: '1 Hour', ms: 60 * 60 * 1000 },
+                    { label: '1 Day', ms: 24 * 60 * 60 * 1000 },
+                    { label: '1 Week', ms: 7 * 24 * 60 * 60 * 1000 },
+                  ].map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => {
+                        const d = new Date(Date.now() + preset.ms);
+                        setValue('deadline', d, { shouldValidate: true });
+                        const input = document.querySelector('input[type="datetime-local"]') as HTMLInputElement | null;
+                        if (input) {
+                          const pad = (n: number) => String(n).padStart(2, '0');
+                          input.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                        }
+                      }}
+                      className="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-sm font-medium transition-colors"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
                 <input
                   type="datetime-local"
                   min={new Date().toISOString().slice(0, 16)}

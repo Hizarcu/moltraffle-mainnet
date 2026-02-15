@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 
 const navLinks = [
@@ -11,7 +12,11 @@ const navLinks = [
 ];
 
 export function Navbar() {
+  const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const isActive = (href: string) =>
+    href === '/' ? pathname === '/' : pathname.startsWith(href);
 
   return (
     <nav className="sticky top-0 z-40 w-full border-b border-border bg-background-primary/80 backdrop-blur-glass">
@@ -31,7 +36,11 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-text-secondary hover:text-text-primary transition-colors"
+                className={`transition-colors border-b-2 pb-0.5 ${
+                  isActive(link.href)
+                    ? 'text-text-primary font-medium border-primary-purple'
+                    : 'text-text-secondary hover:text-text-primary border-transparent'
+                }`}
               >
                 {link.label}
               </Link>
@@ -65,7 +74,11 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="block text-text-secondary hover:text-text-primary transition-colors py-2"
+                className={`block transition-colors py-2 ${
+                  isActive(link.href)
+                    ? 'text-text-primary font-medium'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 {link.label}

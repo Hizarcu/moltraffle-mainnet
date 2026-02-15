@@ -96,7 +96,24 @@ export async function GET(request: NextRequest) {
         currentParticipants, status, creator, winner, creatorCommissionBps,
       ] = details;
 
-      const statusNum = Number(status);
+      const contractStatusNum = Number(status);
+      const deadlineNum = Number(deadline);
+      const now = Math.floor(Date.now() / 1000);
+      const hasWinner = winner !== ZERO_ADDRESS;
+
+      // Override status with actual state (mirrors frontend logic)
+      let statusNum: number;
+      if (contractStatusNum === 4) {
+        statusNum = 4; // CANCELLED
+      } else if (contractStatusNum === 5) {
+        statusNum = 5; // CLAIMED
+      } else if (hasWinner) {
+        statusNum = 3; // DRAWN
+      } else if (deadlineNum <= now) {
+        statusNum = 2; // ENDED
+      } else {
+        statusNum = 1; // ACTIVE
+      }
       const statusLabel = STATUS_LABELS[statusNum] || 'UNKNOWN';
 
       // Apply status filter
@@ -109,12 +126,16 @@ export async function GET(request: NextRequest) {
         ? prizeDescResult.result as string
         : '';
 
-      const deadlineNum = Number(deadline);
       const entryFeeStr = entryFee.toString();
       const prizePoolStr = prizePool.toString();
+      const ticketsSold = Number(currentParticipants);
 
       const entryFeeUsdc = parseFloat(formatUnits(entryFee, 6));
       const prizePoolUsdc = parseFloat(formatUnits(prizePool, 6));
+
+      // Original prize pool (useful for CLAIMED raffles where on-chain balance is 0)
+      const originalPrizePoolRaw = entryFee * BigInt(ticketsSold);
+      const originalPrizePoolUsdc = parseFloat(formatUnits(originalPrizePoolRaw, 6));
 
       raffles.push({
         address: raffleAddresses[i],
@@ -126,7 +147,7 @@ export async function GET(request: NextRequest) {
         deadline: deadlineNum,
         deadlineISO: new Date(deadlineNum * 1000).toISOString(),
         maxTickets: Number(maxParticipants),
-        ticketsSold: Number(currentParticipants),
+        ticketsSold,
         status: statusNum,
         statusLabel,
         creator,
@@ -134,6 +155,8 @@ export async function GET(request: NextRequest) {
         creatorCommissionBps: Number(creatorCommissionBps),
         prizePool: prizePoolStr,
         prizePoolFormatted: `$${prizePoolUsdc.toFixed(2)} USDC`,
+        originalPrizePool: originalPrizePoolRaw.toString(),
+        originalPrizePoolFormatted: `$${originalPrizePoolUsdc.toFixed(2)} USDC`,
       });
     }
 

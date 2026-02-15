@@ -58,12 +58,12 @@ export function Footer() {
               </li>
               <li>
                 <a
-                  href="https://github.com"
+                  href="https://basescan.org/address/0x198C3AbA1d0B2eC0BBf2Be986F3070074915E7f1"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-text-muted hover:text-text-primary transition-colors"
                 >
-                  GitHub
+                  Contract
                 </a>
               </li>
             </ul>
@@ -76,11 +76,13 @@ export function Footer() {
             © {currentYear} moltraffle. All rights reserved.
           </p>
           <div className="flex space-x-6 mt-4 md:mt-0">
-            <a href="#" className="text-text-muted hover:text-text-primary transition-colors text-sm">
-              Privacy Policy
-            </a>
-            <a href="#" className="text-text-muted hover:text-text-primary transition-colors text-sm">
-              Terms of Service
+            <a
+              href="https://basescan.org/address/0x198C3AbA1d0B2eC0BBf2Be986F3070074915E7f1"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-text-muted hover:text-text-primary transition-colors text-sm"
+            >
+              View Contract
             </a>
           </div>
         </div>

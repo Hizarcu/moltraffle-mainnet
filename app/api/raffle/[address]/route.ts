@@ -220,9 +220,25 @@ export async function GET(
       currentParticipants, status, creator, winner, creatorCommissionBps,
     ] = details;
 
-    const statusNum = Number(status);
-    const statusLabel = STATUS_LABELS[statusNum] || 'UNKNOWN';
+    const contractStatusNum = Number(status);
     const deadlineNum = Number(deadline);
+    const now = Math.floor(Date.now() / 1000);
+    const hasWinnerAddr = winner !== ZERO_ADDRESS;
+
+    // Override status with actual state (mirrors frontend logic)
+    let statusNum: number;
+    if (contractStatusNum === 4) {
+      statusNum = 4; // CANCELLED
+    } else if (contractStatusNum === 5) {
+      statusNum = 5; // CLAIMED
+    } else if (hasWinnerAddr) {
+      statusNum = 3; // DRAWN
+    } else if (deadlineNum <= now) {
+      statusNum = 2; // ENDED
+    } else {
+      statusNum = 1; // ACTIVE
+    }
+    const statusLabel = STATUS_LABELS[statusNum] || 'UNKNOWN';
     const maxParticipantsNum = Number(maxParticipants);
     const currentParticipantsNum = Number(currentParticipants);
 
@@ -235,6 +251,18 @@ export async function GET(
 
     const entryFeeUsdc = parseFloat(formatUnits(entryFee, 6));
     const prizePoolUsdc = parseFloat(formatUnits(prizePool, 6));
+    const commBps = Number(creatorCommissionBps);
+
+    // Original prize pool (useful for CLAIMED raffles where on-chain balance is 0)
+    const originalPrizePoolRaw = entryFee * BigInt(currentParticipantsNum);
+    const originalPrizePoolUsdc = parseFloat(formatUnits(originalPrizePoolRaw, 6));
+
+    // Fee breakdown and estimated winner payout
+    const poolForCalc = prizePoolUsdc > 0 ? prizePoolUsdc : originalPrizePoolUsdc;
+    const platformFeeAmt = poolForCalc * 0.02;
+    const afterPlatform = poolForCalc - platformFeeAmt;
+    const creatorCommAmt = afterPlatform * (commBps / 10000);
+    const winnerPayout = afterPlatform - creatorCommAmt;
 
     const actions = buildActions(
       raffleAddress,
@@ -261,9 +289,17 @@ export async function GET(
       statusLabel,
       creator,
       winner: winner === ZERO_ADDRESS ? null : winner,
-      creatorCommissionBps: Number(creatorCommissionBps),
+      creatorCommissionBps: commBps,
       prizePool: prizePool.toString(),
       prizePoolFormatted: `$${prizePoolUsdc.toFixed(2)} USDC`,
+      originalPrizePool: originalPrizePoolRaw.toString(),
+      originalPrizePoolFormatted: `$${originalPrizePoolUsdc.toFixed(2)} USDC`,
+      estimatedWinnerPayout: `$${winnerPayout.toFixed(2)} USDC`,
+      feeBreakdown: {
+        platformFee: `$${platformFeeAmt.toFixed(2)} USDC (2%)`,
+        creatorCommission: `$${creatorCommAmt.toFixed(2)} USDC (${(commBps / 100).toFixed(1)}%)`,
+        winnerReceives: `$${winnerPayout.toFixed(2)} USDC`,
+      },
       participants,
       vrfRequestId,
       randomResult: randomResultVal,

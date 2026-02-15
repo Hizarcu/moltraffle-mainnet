@@ -145,6 +145,7 @@ export default function ExplorePage() {
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortKey)}
                 className="px-4 py-3 rounded-lg bg-background-secondary text-text-secondary border border-white/10 font-medium focus:outline-none focus:border-purple-500/50"
+                style={{ colorScheme: 'dark' }}
               >
                 {sortOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -168,16 +169,26 @@ export default function ExplorePage() {
 
         {/* Raffle Display */}
         {hasBlockchainRaffles ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredSortedAddresses.map((raffleAddress) => (
-              <RaffleCardFromAddress
-                key={raffleAddress}
-                raffleAddress={raffleAddress}
-                userAddress={address}
-                filterStatus="all"
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredSortedAddresses.map((raffleAddress) => (
+                <RaffleCardFromAddress
+                  key={raffleAddress}
+                  raffleAddress={raffleAddress}
+                  userAddress={address}
+                  filterStatus="all"
+                />
+              ))}
+            </div>
+            {filteredSortedAddresses.length === 0 && (
+              <div className="text-center py-12">
+                <div className="text-4xl mb-3">🔍</div>
+                <p className="text-text-secondary text-lg">
+                  No {selectedStatus === 'all' ? '' : selectedStatus} raffles found
+                </p>
+              </div>
+            )}
+          </>
         ) : (
           <Card className="p-12 text-center">
             <div className="text-6xl mb-4">🎯</div>

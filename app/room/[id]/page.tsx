@@ -256,9 +256,9 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
                 {(raffle.creatorCommissionBps ?? 0) > 0 && (
                   <div className="mt-3 pt-3 border-t border-primary-purple/20">
                     <div className="flex justify-between text-sm">
-                      <span className="text-yellow-400">Creator earns {(raffle.creatorCommissionBps! / 100)}%</span>
+                      <span className="text-yellow-400">Creator earns {(raffle.creatorCommissionBps! / 100)}% + 2% platform fee</span>
                       <span className="text-text-secondary">
-                        Winner receives ${(raffle.prizePool * (1 - raffle.creatorCommissionBps! / 10000)).toFixed(2)} USDC
+                        Winner receives ${(raffle.prizePool * 0.98 * (1 - raffle.creatorCommissionBps! / 10000)).toFixed(2)} USDC
                       </span>
                     </div>
                   </div>
@@ -276,10 +276,6 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
             <Card variant="glass">
               <h2 className="text-2xl font-semibold mb-4">Timeline</h2>
               <div className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-text-muted">Created</span>
-                  <span className="font-medium">{formatDate(raffle.createdAt)}</span>
-                </div>
                 <div className="flex justify-between">
                   <span className="text-text-muted">Deadline</span>
                   <span className="font-medium">{formatDate(raffle.deadline)}</span>
@@ -355,9 +351,14 @@ export default function RaffleDetailPage({ params }: { params: Promise<{ id: str
                 <p className="font-mono text-xs text-text-secondary break-all">
                   {raffle.contractAddress}
                 </p>
-                <Button variant="ghost" size="sm" className="w-full mt-3">
-                  View on Explorer
-                </Button>
+                <a
+                  href={`https://basescan.org/address/${raffle.contractAddress}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center w-full mt-3 px-3 py-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors"
+                >
+                  View on Explorer →
+                </a>
               </Card>
             </div>
           </div>

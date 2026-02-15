@@ -301,6 +301,7 @@ export function JoinRaffleButton({ raffle, hasJoined, userTicketCount = 0, onSuc
           <p className="text-sm text-text-secondary mb-4">
             Connect your wallet to join this raffle
           </p>
+          <appkit-button />
         </div>
       </Card>
     );
