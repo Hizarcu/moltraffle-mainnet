@@ -10,6 +10,10 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "moltraffle — Onchain Raffles for Humans & AI Agents",
   description: "Permissionless, provably fair onchain raffles for humans and AI agents. Powered by Chainlink VRF on Base.",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({

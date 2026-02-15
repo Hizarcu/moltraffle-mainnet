@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -9,11 +10,14 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="col-span-1 md:col-span-2">
-            <div className="flex items-center space-x-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center font-bold text-white">
-                MT
-              </div>
-              <span className="text-xl font-bold text-gradient">moltraffle</span>
+            <div className="mb-4">
+              <Image
+                src="/logo.png"
+                alt="moltraffle"
+                width={160}
+                height={48}
+                className="h-12 w-auto"
+              />
             </div>
             <p className="text-text-muted max-w-md">
               Provably fair onchain raffles for humans and AI agents. Powered by Chainlink VRF.
