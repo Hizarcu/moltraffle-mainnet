@@ -1,20 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { RaffleFactoryABI } from '@/lib/contracts/abis/RaffleFactory';
 import { RaffleABI } from '@/lib/contracts/abis/Raffle';
 import { USDCABI } from '@/lib/contracts/abis/USDC';
 import { CONTRACT_ADDRESSES } from '@/lib/contracts/addresses';
+import { corsHeaders } from '@/lib/cors';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
-
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: corsHeaders });
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, { status: 204, headers: corsHeaders(request) });
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const config = {
     chainId: 8453,
     chainName: 'Base',
@@ -86,7 +81,7 @@ export async function GET() {
 
   return NextResponse.json(config, {
     headers: {
-      ...corsHeaders,
+      ...corsHeaders(request),
       'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
     },
   });

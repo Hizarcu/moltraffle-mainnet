@@ -1,11 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { corsHeaders } from '@/lib/cors';
+
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, { status: 204, headers: corsHeaders(request) });
+}
 
 /**
  * GET /api/validation-rules
  * Returns contract validation rules in machine-readable JSON format
  * Useful for AI agents and programmatic integrations
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const validationRules = {
     version: '2.0.0',
     contractVersion: 'v3.0-usdc-migration',
@@ -107,6 +112,7 @@ export async function GET() {
 
   return NextResponse.json(validationRules, {
     headers: {
+      ...corsHeaders(request),
       'Content-Type': 'application/json',
       'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
     },

@@ -3,22 +3,18 @@ import { parseUnits, formatUnits, encodeFunctionData } from 'viem';
 import { RaffleFactoryABI } from '@/lib/contracts/abis/RaffleFactory';
 import { USDCABI } from '@/lib/contracts/abis/USDC';
 import { CONTRACT_ADDRESSES } from '@/lib/contracts/addresses';
+import { corsHeaders } from '@/lib/cors';
 
 const FACTORY_ADDRESS = CONTRACT_ADDRESSES[8453].RaffleFactory;
 const USDC_ADDRESS = CONTRACT_ADDRESSES[8453].USDC;
 const CREATION_FEE = BigInt(1000000); // $1 USDC
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
-
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: corsHeaders });
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, { status: 204, headers: corsHeaders(request) });
 }
 
 export async function GET(request: NextRequest) {
+  const cors = corsHeaders(request);
   try {
     const { searchParams } = new URL(request.url);
 
@@ -52,7 +48,7 @@ export async function GET(request: NextRequest) {
     if (errors.length > 0) {
       return NextResponse.json(
         { error: 'Missing or invalid parameters', details: errors },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: cors }
       );
     }
 
@@ -63,7 +59,7 @@ export async function GET(request: NextRequest) {
     } catch {
       return NextResponse.json(
         { error: 'Invalid entryFee — must be a valid USDC amount (e.g. "1.00")' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: cors }
       );
     }
 
@@ -104,7 +100,7 @@ export async function GET(request: NextRequest) {
     if (errors.length > 0) {
       return NextResponse.json(
         { error: 'Validation failed', details: errors },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: cors }
       );
     }
 
@@ -176,7 +172,7 @@ export async function GET(request: NextRequest) {
       estimatedGas: '~500000',
     }, {
       headers: {
-        ...corsHeaders,
+        ...cors,
         'Cache-Control': 'no-store',
       },
     });
@@ -184,7 +180,7 @@ export async function GET(request: NextRequest) {
     console.error('Error encoding calldata:', error);
     return NextResponse.json(
       { error: 'Failed to encode calldata' },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: cors }
     );
   }
 }

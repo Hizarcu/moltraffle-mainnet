@@ -4,6 +4,7 @@ import { publicClient } from '@/lib/contracts/client';
 import { RaffleFactoryABI } from '@/lib/contracts/abis/RaffleFactory';
 import { RaffleABI } from '@/lib/contracts/abis/Raffle';
 import { CONTRACT_ADDRESSES } from '@/lib/contracts/addresses';
+import { corsHeaders } from '@/lib/cors';
 
 const FACTORY_ADDRESS = CONTRACT_ADDRESSES[8453].RaffleFactory as `0x${string}`;
 
@@ -18,17 +19,12 @@ const STATUS_LABELS: Record<number, string> = {
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
-
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: corsHeaders });
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, { status: 204, headers: corsHeaders(request) });
 }
 
 export async function GET(request: NextRequest) {
+  const cors = corsHeaders(request);
   try {
     const { searchParams } = new URL(request.url);
     const statusFilter = searchParams.get('status')?.toLowerCase();
@@ -39,7 +35,7 @@ export async function GET(request: NextRequest) {
     if (creatorFilter && !isAddress(creatorFilter)) {
       return NextResponse.json(
         { error: 'Invalid creator address' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: cors }
       );
     }
 
@@ -63,7 +59,7 @@ export async function GET(request: NextRequest) {
     if (raffleAddresses.length === 0) {
       return NextResponse.json(
         { raffles: [], total: 0, limit, offset },
-        { headers: { ...corsHeaders, 'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30' } }
+        { headers: { ...cors, 'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30' } }
       );
     }
 
@@ -171,7 +167,7 @@ export async function GET(request: NextRequest) {
       { raffles: paginated, total, limit, offset },
       {
         headers: {
-          ...corsHeaders,
+          ...cors,
           'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30',
         },
       }
@@ -180,7 +176,7 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching raffles:', error);
     return NextResponse.json(
       { error: 'Failed to fetch raffles from chain' },
-      { status: 502, headers: corsHeaders }
+      { status: 502, headers: cors }
     );
   }
 }

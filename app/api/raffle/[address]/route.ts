@@ -4,6 +4,7 @@ import { publicClient } from '@/lib/contracts/client';
 import { RaffleABI } from '@/lib/contracts/abis/Raffle';
 import { RaffleFactoryABI } from '@/lib/contracts/abis/RaffleFactory';
 import { CONTRACT_ADDRESSES } from '@/lib/contracts/addresses';
+import { corsHeaders } from '@/lib/cors';
 
 const FACTORY_ADDRESS = CONTRACT_ADDRESSES[8453].RaffleFactory;
 
@@ -18,14 +19,8 @@ const STATUS_LABELS: Record<number, string> = {
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
-
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: corsHeaders });
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, { status: 204, headers: corsHeaders(request) });
 }
 
 function buildActions(
@@ -175,13 +170,14 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ address: string }> },
 ) {
+  const cors = corsHeaders(request);
   try {
     const { address } = await params;
 
     if (!isAddress(address)) {
       return NextResponse.json(
         { error: 'Invalid raffle address' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: cors }
       );
     }
 
@@ -207,7 +203,7 @@ export async function GET(
     if (detailsResult.status !== 'success') {
       return NextResponse.json(
         { error: 'Failed to read raffle — address may not be a valid Raffle contract' },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: cors }
       );
     }
 
@@ -309,7 +305,7 @@ export async function GET(
 
     return NextResponse.json(raffle, {
       headers: {
-        ...corsHeaders,
+        ...cors,
         'Cache-Control': 'no-store',
       },
     });
@@ -317,7 +313,7 @@ export async function GET(
     console.error('Error fetching raffle:', error);
     return NextResponse.json(
       { error: 'Failed to fetch raffle from chain' },
-      { status: 502, headers: corsHeaders }
+      { status: 502, headers: cors }
     );
   }
 }
